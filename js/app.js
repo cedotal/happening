@@ -3,6 +3,12 @@ var HAPPENING = {};
 // utility functions
 HAPPENING.utils = {
     calculateDistance: function(lat1, lon1, lat2, lon2) {
+        if (!lat1 || !lon1 || !lat2 || !lon2) {
+            throw {
+                "name": "invalid arguments to calculateDistance()",
+                "message": "one or more of the arguments to calculateDistance(), which should all be latitude or longitude values, is invalid"
+            }
+        }
         // radius of the Earth (approximated sphere) in km
         var radius = 6371;
         // delta of latitudes and longitudes, converted to radians
@@ -51,11 +57,10 @@ HAPPENING.utils = {
         }
         // if google's location API doesn't work, try the W3C standard API for geolocation, which requires the user to respond "yes" to sharing their location 
         else if (typeof navigator.geolocation.getCurrentPosition !== undefined) {
-            // the navigation API can only give us lat and long...
             navigator.geolocation.getCurrentPosition(
             // first argument is the success function
             function(position) {
-                // so we have to use them to perform a reverse lookup
+                // the navigation API can only give us lat and long...
                 locationObject.latitude = position.coords.latitude, locationObject.longitude = position.coords.longitude;
                 // so we have to use them to perform a reverse lookup
                 var openStreetMapUrl = "http://nominatim.openstreetmap.org/reverse?format=json&lat=" + locationObject.latitude + "&lon=" + locationObject.longitude;
@@ -91,6 +96,8 @@ HAPPENING.models = {
         defaults: {
             currentlyViewedLocation: HAPPENING.utils.findCurrentUserLocation(),
             currentlyViewedTheme: HAPPENING.utils.getThemeFromUrl()
+        },
+        initialize: function() {
         }
     }),
     Happening: Backbone.Model.extend()
@@ -100,8 +107,9 @@ HAPPENING.collections = {
     HappeningCollection: Backbone.Collection.extend({
         model: HAPPENING.models.Happening,
         comparator: function(happening){
-            return HAPPENING.utils.calculateDistance(happening.attributes.location.latitude, happening.attributes.location.longitude, HAPPENING.applicationSpace.user.attributes.currentlyViewedLocation.latitude, HAPPENING.applicationSpace.user.attributes.currentlyViewedLocation.longitude) 
+            return HAPPENING.utils.calculateDistance(happening.get("location").latitude, happening.get("location").longitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude) 
         },
+        // reset the viewable collections according to the user's filter preferences
         reset: function() {
             var self = this;
             var makeApiCall = HAPPENING.utils.makeApiCall;
@@ -124,17 +132,30 @@ HAPPENING.collections = {
 };
 
 HAPPENING.views = {
-    locationView: Backbone.View.extend({
-        el: "#user-location",
+    ApplicationView: Backbone.View.extend({
+        el: null,
         initialize: function() {
+            this.user = 
+            this.locationView = new HAPPENING.views.LocationView();
+            this.themeView = new HAPPENING.views.ThemeView();
+            this.happeningsView = new HAPPENING.views.HappeningsView();
         }
     }),
-    themeView: Backbone.View.extend({
+    LocationView: Backbone.View.extend({
+        el: "#user-location",
+        initialize: function() {
+        },
+        render: function() {
+            $(this.el).empty();
+            $(this.el).append("It looks like you're in:");
+        }
+    }),
+    ThemeView: Backbone.View.extend({
         el: "#theme-selector",
         initialize: function() {
         }
     }),
-    happeningsView: Backbone.View.extend({
+    HappeningsView: Backbone.View.extend({
         el: "#happenings-container",
         initialize: function() {
             this.collection = new HAPPENING.collections.HappeningCollection;
@@ -148,7 +169,6 @@ HAPPENING.views = {
                 var templatize = HAPPENING.utils.templatize;
                 var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%> km)</div>";
                 _(this.collection.models).each(function(happeningObject) {
-                    console.log("latitude: " + happeningObject.get("location").latitude + ", longitude: " + happeningObject.get("location").longitude);
                     var happeningData = {
                     "name": happeningObject.get("name"),
                     "beginDate": happeningObject.get("dates").beginDate,
@@ -172,4 +192,4 @@ HAPPENING.applicationSpace = {};
 
 HAPPENING.applicationSpace.user = new HAPPENING.models.User;
 
-HAPPENING.applicationSpace.happeningsView = new HAPPENING.views.happeningsView;
+window.setTimeout( function() {HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView; }, 2000);
