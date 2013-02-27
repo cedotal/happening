@@ -2,8 +2,10 @@ var HAPPENING = {};
 
 // utility functions
 HAPPENING.utils = {
+    // a function that accepts a latitude and longitude and returns the distance between that location and the event's location in kilometers; note that this uses the haversine formula rather than Vincenty's fomulae for two reasons: 1) performance, and 2) what matters to the user is comparative distances rather than absolute distances
     calculateDistance: function(lat1, lon1, lat2, lon2) {
-        if (!lat1 || !lon1 || !lat2 || !lon2) {
+        // we need strict checking of values passed in because 0 is an acceptable value for any of these, but undefined and null are not
+        if (typeof lat1 === undefined || typeof lat1 === null || typeof lon1 === undefined || typeof lon1 === null || typeof lat2 === undefined || typeof lat2 === null || typeof lon2 === undefined || typeof lon2 === null) {
             throw {
                 "name": "invalid arguments to calculateDistance()",
                 "message": "one or more of the arguments to calculateDistance(), which should all be latitude or longitude values, is invalid"
@@ -24,6 +26,7 @@ HAPPENING.utils = {
         // return distance along Earth's surface
         return d;
     },
+    // function that accepts a url and returns the result of an API call; currently only handles JSON
     makeApiCall: function(url) {
         var result;
         $.ajax({
@@ -34,10 +37,12 @@ HAPPENING.utils = {
         result = $.parseJSON(result);
         return result;
     },
+    // accepts an ERB-style template string, an object to apply to the string, and returns the templatized string
     templatize: function(templateString, templateDataObject) {
         var htmlConstructor = _.template(templateString);
         return htmlConstructor(templateDataObject);
     },
+    // a function that goes through various methods, attempting to figure out where the user is, until one works; if none work, a location object is returned will all of its non-object attributes set to null
     findCurrentUserLocation: function() {
         // initialize location object to return
         var locationObject = {
@@ -48,14 +53,14 @@ HAPPENING.utils = {
             'latitude': null,
             'longitude': null
         };
-        // first, try to use google's non-intrusive location API
+        // first, try to use google's location API, which doesn't require the user to actively approve the location-sharing
         if (google.loader.ClientLocation !== undefined && google.loader.ClientLocation !== null) {
             locationObject.address.city = google.loader.ClientLocation.address.city,
             locationObject.address.country = google.loader.ClientLocation.address.country,
             locationObject.latitude = google.loader.ClientLocation.latitude,
             locationObject.longitude = google.loader.ClientLocation.longitude;
         }
-        // if google's location API doesn't work, try the W3C standard API for geolocation, which requires the user to respond "yes" to sharing their location 
+        // try the W3C standard API for geolocation, which requires the user to respond "yes" to sharing their location 
         else if (typeof navigator.geolocation.getCurrentPosition !== undefined) {
             navigator.geolocation.getCurrentPosition(
             // first argument is the success function
@@ -79,33 +84,30 @@ HAPPENING.utils = {
         // if none of our location-finding methods work, everything in the object starts as null
         return locationObject;
     },
+    // gets a particular parameter's value from the url
     getUrlParameter: function(name) {
         return decodeURI(
             (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
         );
-    },
-    getThemeFromUrl: function() {
-        currentUrlTheme = parseInt(this.getUrlParameter('theme'));
-        // TODO: this needs error throwing
-        return currentUrlTheme;
     }
 };
 
 HAPPENING.models = {
     User: Backbone.Model.extend({
+        // when we first create a user model, we attempt to populate both the theme and location preference
         defaults: {
             currentlyViewedLocation: HAPPENING.utils.findCurrentUserLocation(),
-            currentlyViewedTheme: HAPPENING.utils.getThemeFromUrl()
-        },
-        initialize: function() {
+            currentlyViewedTheme: parseInt(HAPPENING.utils.getUrlParameter("theme"))
         }
     }),
+    // nothing special yet for the creation of happening models
     Happening: Backbone.Model.extend()
 };
 
 HAPPENING.collections = {
     HappeningCollection: Backbone.Collection.extend({
         model: HAPPENING.models.Happening,
+        // the comparator function determines what function is used when this collection gets sorted
         comparator: function(happening){
             return HAPPENING.utils.calculateDistance(happening.get("location").latitude, happening.get("location").longitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude) 
         },
@@ -113,8 +115,6 @@ HAPPENING.collections = {
         reset: function() {
             var self = this;
             var makeApiCall = HAPPENING.utils.makeApiCall;
-    
-            // convert result from string to object
             var happeningsResult = makeApiCall('js/happenings-data.js');
                         
             // filter happenings by theme
@@ -123,7 +123,7 @@ HAPPENING.collections = {
                     return true;
                 };
             });
-                        
+            // then add each one to the collection
             happeningsResult.forEach(function(happening) {
                 self.add(happening);
             });
@@ -133,9 +133,10 @@ HAPPENING.collections = {
 
 HAPPENING.views = {
     ApplicationView: Backbone.View.extend({
+        // this master view doesn't actually get rendered, it just renders other views
         el: null,
         initialize: function() {
-            this.user = 
+            // initialize (and self-render) all the necessary views
             this.locationView = new HAPPENING.views.LocationView();
             this.themeView = new HAPPENING.views.ThemeView();
             this.happeningsView = new HAPPENING.views.HappeningsView();
@@ -143,16 +144,31 @@ HAPPENING.views = {
     }),
     LocationView: Backbone.View.extend({
         el: "#user-location",
+        // view renders when created
         initialize: function() {
+            this.render();
         },
         render: function() {
-            $(this.el).empty();
-            $(this.el).append("It looks like you're in:");
+            var renderElement = this.el;
+            $(renderElement).empty();
+            $(renderElement).append("It looks like you're in:");
+            var testLocationPresence = function() {
+                var self = this;
+                if (HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city && HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country) {
+                    $(renderElement).append(HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city + ", " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country);
+                    clearInterval(timer);
+                };
+            };
+            var timer = setInterval(testLocationPresence, 200);
         }
     }),
     ThemeView: Backbone.View.extend({
         el: "#theme-selector",
+        // view renders when created
         initialize: function() {
+            this.render();
+        },
+        render: function() {
         }
     }),
     HappeningsView: Backbone.View.extend({
@@ -192,4 +208,6 @@ HAPPENING.applicationSpace = {};
 
 HAPPENING.applicationSpace.user = new HAPPENING.models.User;
 
-window.setTimeout( function() {HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView; }, 2000);
+window.setTimeout( function() {HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView; }, 1000);
+
+//HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView
