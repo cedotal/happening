@@ -89,6 +89,23 @@ HAPPENING.utils = {
         return decodeURI(
             (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
         );
+    },
+    // function that repeatedly checks whether a value is set , performs a success callback when it's done, and performs a failure callback when it exceeds the timeout value; right now, interval and timeout values are hardcoded 
+    checkForValueRepeatedly: function(valueToCheck, successCallback, failureCallback) {
+        var counter = 0;
+        var repeatedCheckFunction = function() {
+            if (typeof valueToCheck === null || typeof valueToCheck === undefined) {
+                successCallback();
+                clearInterval(timer);
+            }
+            else if (counter >= 20) {
+                failureCallback();
+            }
+            else {
+                counter++;
+            };
+        };
+        var timer = setInterval(repeatedCheckFunction, 200);
     }
 };
 
@@ -148,6 +165,8 @@ HAPPENING.views = {
         initialize: function() {
             this.render();
         },
+        // renders the location view
+        // TODO: make this "check for a value and wait to do a thing until that value appears" into a generic function
         render: function() {
             var renderElement = this.el;
             $(renderElement).empty();
@@ -168,7 +187,19 @@ HAPPENING.views = {
         initialize: function() {
             this.render();
         },
+        // TODO: this function is not handling an undefined "theme" parameter properly
         render: function() {
+            this.currentlyViewedTheme = HAPPENING.applicationSpace.user.get("currentlyViewedTheme");
+            themeHtml = "";
+            console.log(typeof this.currentlyViewedTheme);
+            if (typeof this.currentlyViewedTheme === null || typeof this.currentlyViewedTheme === undefined || typeof this.currentlyViewedTheme === NaN) {
+                themeHtml = "You don't seem to have a theme selected!";
+            }
+            else {
+                
+                themeHtml = "Here are some happenings with a theme ID of: " + this.currentlyViewedTheme;
+            };
+            $(this.el).append(themeHtml);
         }
     }),
     HappeningsView: Backbone.View.extend({
