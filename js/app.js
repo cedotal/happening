@@ -91,14 +91,20 @@ HAPPENING.utils = {
         );
     },
     // function that repeatedly checks whether a value is set , performs a success callback when it's done, and performs a failure callback when it exceeds the timeout value; right now, interval and timeout values are hardcoded 
-    checkForValueRepeatedly: function(valueToCheck, successCallback, failureCallback) {
+    checkForValueRepeatedly: function(valuesToCheck, successCallback, failureCallback) {
         var counter = 0;
         var repeatedCheckFunction = function() {
-            if (typeof valueToCheck === null || typeof valueToCheck === undefined) {
+            var definitionCheckArray = [];
+            valuesToCheck.forEach(function(valueToCheck) {
+                if (typeof valueToCheck === null || typeof valuesToCheck === undefined) {
+                    definitionCheckArray.push(false);
+                };
+            });
+            if (!_.contains(definitionCheckArray, false)) {
                 successCallback();
                 clearInterval(timer);
             }
-            else if (counter >= 20) {
+            else if (counter >= 25) {
                 failureCallback();
             }
             else {
@@ -170,15 +176,17 @@ HAPPENING.views = {
         render: function() {
             var renderElement = this.el;
             $(renderElement).empty();
-            $(renderElement).append("It looks like you're in:");
-            var testLocationPresence = function() {
-                var self = this;
-                if (HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city && HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country) {
-                    $(renderElement).append(HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city + ", " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country);
-                    clearInterval(timer);
-                };
+            $(renderElement).append("It looks like you're in: [LOADING ANIMATION]");
+            var htmlToInject = "";
+            var successCallback = function() {
+                $(renderElement).empty();
+                $(renderElement).append("It looks like you're in: " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city + ", " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country);
             };
-            var timer = setInterval(testLocationPresence, 200);
+            var failureCallback = function() {
+                $(renderElement).empty();
+                $(renderElement).append("We can't seem to detect your location.");
+            };
+            HAPPENING.utils.checkForValueRepeatedly([HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country], successCallback, failureCallback);
         }
     }),
     ThemeView: Backbone.View.extend({
@@ -187,13 +195,31 @@ HAPPENING.views = {
         initialize: function() {
             this.render();
         },
-        // TODO: this function is not handling an undefined "theme" parameter properly
+        events: {
+            'focus form#theme': 'displayAutosuggest',
+            'blur form#theme': 'hideAutosuggest'
+        },
+        displayAutosuggest: function() {
+            var self = this;
+            var possibleThemes = HAPPENING.utils.makeApiCall('js/themes-data.js');
+            // empty the element in case a 'focus' event is fired again without a blur event having been fired
+            $(self.el).remove("#autosuggest-result");
+            htmlToInject = "<div id='autosuggest-container'>";
+            possibleThemes.forEach(function(possibleTheme){
+                htmlToInject += '<div id="autosuggest-result" themeID=\'' + possibleTheme.ID + '\'>' + possibleTheme.name + '</div>';
+            });
+            htmlToInject += "</div>";
+            $(self.el).append(htmlToInject);
+        },
+        hideAutosuggest: function() {
+            var self = this;
+            $("#autosuggest-container").remove();
+        },
         render: function() {
             this.currentlyViewedTheme = HAPPENING.applicationSpace.user.get("currentlyViewedTheme");
             themeHtml = "";
-            console.log(typeof this.currentlyViewedTheme);
-            if (typeof this.currentlyViewedTheme === null || typeof this.currentlyViewedTheme === undefined || typeof this.currentlyViewedTheme === NaN) {
-                themeHtml = "You don't seem to have a theme selected!";
+            if (typeof this.currentlyViewedTheme === null || typeof this.currentlyViewedTheme === undefined ||  isNaN(parseFloat(this.currentlyViewedTheme))) {
+                themeHtml = "Search for happenings with: <form id='theme'><input type='text'></input></form>";
             }
             else {
                 
@@ -210,27 +236,37 @@ HAPPENING.views = {
             this.render();
         },
         render: function() {
+            var self = this;
+            $(this.el).append("[LOADING ANIMATION]");
             var htmlToInject = "";
-            if (this.collection.length > 0) {
-                var calculateDistance = HAPPENING.utils.calculateDistance;
-                var templatize = HAPPENING.utils.templatize;
-                var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%> km)</div>";
-                _(this.collection.models).each(function(happeningObject) {
-                    var happeningData = {
-                    "name": happeningObject.get("name"),
-                    "beginDate": happeningObject.get("dates").beginDate,
-                    "endDate": happeningObject.get("dates").endDate,
-                    "distanceFromUserLocation": Math.floor(calculateDistance(happeningObject.get("location").latitude, happeningObject.get("location").longitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude)),
-                    "city": happeningObject.get("location").address.city
-                    };
-                    // use underscore.js' templating function to create event element
-                    htmlToInject += templatize(happeningHTMLTemplate, happeningData);
-                });
-            }
-            else {
-                htmlToInject = "there are no happenings :(";
+            var successCallback = function() {
+                if (self.collection.length > 0) {
+                    var calculateDistance = HAPPENING.utils.calculateDistance;
+                    var templatize = HAPPENING.utils.templatize;
+                    var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%> km)</div>";
+                    _(self.collection.models).each(function(happeningObject) {
+                        var happeningData = {
+                        "name": happeningObject.get("name"),
+                        "beginDate": happeningObject.get("dates").beginDate,
+                        "endDate": happeningObject.get("dates").endDate,
+                        "distanceFromUserLocation": Math.floor(calculateDistance(happeningObject.get("location").latitude, happeningObject.get("location").longitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude)),
+                        "city": happeningObject.get("location").address.city
+                        };
+                        // use underscore.js' templating function to create event element
+                        htmlToInject += templatize(happeningHTMLTemplate, happeningData);
+                    });
+                }
+                else {
+                    htmlToInject = "there are no happenings :(";
+                };
+                $(self.el).empty();
+                $(self.el).append(htmlToInject);
             };
-            $(this.el).append(htmlToInject);
+            var failureCallback = function() {
+                htmlToInject = "Please enter your location to see happenings.";
+                $(this.el).append(htmlToInject);
+            };
+            HAPPENING.utils.checkForValueRepeatedly([HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude], successCallback, failureCallback);
         }
     })
 };
@@ -239,6 +275,5 @@ HAPPENING.applicationSpace = {};
 
 HAPPENING.applicationSpace.user = new HAPPENING.models.User;
 
-window.setTimeout( function() {HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView; }, 1000);
+HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView;
 
-//HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView
