@@ -12,8 +12,8 @@ HAPPENING.utils = {
             }
         }
         // uses the haversine formula rather than Vincenty's fomulae for performance reasons
-        // radius of the Earth (approximated sphere) in km
-        var radius = 6371;
+        // radius of the Earth (approximated sphere) in miles
+        var radius = 3963;
         // delta of latitudes and longitudes, converted to radians
         var dLat = Math.abs(lat2-lat1) * Math.PI / 180;
         var dLon = Math.abs(lon2-lon1) * Math.PI / 180;
@@ -122,6 +122,16 @@ HAPPENING.models = {
         defaults: {
             currentlyViewedLocation: HAPPENING.utils.findCurrentUserLocation(),
             currentlyViewedTheme: parseInt(HAPPENING.utils.getUrlParameter("theme"))
+        },
+        initialize: function() {
+            this.on("change:currentlyViewedLocation", function(model) {
+                console.log("changed location");
+                HAPPENING.applicationSpace.applicationView.happeningsView.render();
+            });
+            this.on("change:currentlyViewedTheme", function(model) {
+                console.log("changed theme");
+                HAPPENING.applicationSpace.applicationView.happeningsView.render();
+            });
         }
     }),
     Happening: Backbone.Model.extend(),
@@ -138,15 +148,20 @@ HAPPENING.collections = {
         // reset the viewable collections according to the user's filter preferences
         reset: function() {
             var self = this;
+            this.models = [];
             var makeApiCall = HAPPENING.utils.makeApiCall;
             var happeningsResult = makeApiCall('js/happenings-data.js');
-                        
+            console.log("resetting HappeningCollection");
+            console.log("initial happenings themeArrays");
+            console.log(happeningsResult.map(function(result){return result.themes;}));
             // filter happenings by theme
             happeningsResult = happeningsResult.filter(function(happening) {
-                if (_.contains(happening.themes, HAPPENING.applicationSpace.user.get("currentlyViewedTheme"))) {
+                if (_.contains(happening.themes, HAPPENING.applicationSpace.user.get("currentlyViewedTheme").ID)) {
                     return true;
                 };
             });
+            console.log("post-filtering happenings themeArrays");
+            console.log(happeningsResult.map(function(result){return result.themes;}));
             // then add each one to the collection
             happeningsResult.forEach(function(happening) {
                 self.add(happening);
@@ -155,10 +170,12 @@ HAPPENING.collections = {
     }),
     AutosuggestResultCollection: Backbone.Collection.extend({
         model: HAPPENING.models.AutosuggestResult,
+        // keep autosuggest results sorted in alphabetical order
         comparator: function(autosuggestResult) {
-            return autosuggestResult.name;
+            return autosuggestResult.get("name");
         },
         reset: function(searchString) {
+            this.models = [];
             var self = this;
             var makeApiCall = HAPPENING.utils.makeApiCall;
             var autosuggestResults = makeApiCall('js/themes-data.js');
@@ -174,10 +191,7 @@ HAPPENING.collections = {
             });
         }
     })
-
 };
-
-
 
 HAPPENING.views = {
     // this master view doesn't actually get rendered, it just renders other views
@@ -219,12 +233,13 @@ HAPPENING.views = {
     }),
     HappeningsView: Backbone.View.extend({
         initialize: function() {
-            this.collection = new HAPPENING.collections.HappeningCollection;
-            this.collection.reset();
+            this.collection = new HAPPENING.collections.HappeningCollection();
             this.render();
         },
         // TODO: happenings should really be their own views
         render: function() {
+            console.log("HappeningsView rendering");
+            this.collection.reset();
             var self = this;
             $(this.el).append("[LOADING ANIMATION]");
             var htmlToInject = "";
@@ -232,7 +247,8 @@ HAPPENING.views = {
                 if (self.collection.length > 0) {
                     var calculateDistance = HAPPENING.utils.calculateDistance;
                     var templatize = HAPPENING.utils.templatize;
-                    var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%> km)</div>";
+                    self.collection.reset();
+                    var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%> miles)</div>";
                     _(self.collection.models).each(function(happeningObject) {
                         var happeningData = {
                         "name": happeningObject.get("name"),
@@ -253,6 +269,7 @@ HAPPENING.views = {
             };
             var failureCallback = function() {
                 htmlToInject = "Please enter your location to see happenings.";
+                $(self.el).empty();
                 $(this.el).append(htmlToInject);
             };
             HAPPENING.utils.checkForValueRepeatedly([HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude], successCallback, failureCallback);
@@ -313,7 +330,8 @@ HAPPENING.views = {
         events: {
             'submit form': 'enterFilter',
             'keyup input': 'inputHandler',
-            'focus input': 'inputHandler'
+            'focus input': 'inputHandler',
+            'blur input': 'blurHandler'
         },
         // the sole purpose of this event is to prevent the page from reloading on a submission
         enterFilter: function() {
@@ -333,6 +351,16 @@ HAPPENING.views = {
             this.autosuggestResultsView.render(searchString);
         },
         searchSubmitHandler: function() {
+            this.blurHandler();
+            HAPPENING.applicationSpace.user.set({
+                "currentlyViewedTheme": {
+                    "ID": 4,
+                    "name": "Engineering"
+                }
+            });
+        },
+        blurHandler: function() {
+            this.autosuggestResultsView.render(null);
         }
     }),
     SearchFormView: Backbone.View.extend({
@@ -350,74 +378,30 @@ HAPPENING.views = {
         },
         render: function(searchString) {
             var self = this;
-            this.collection.reset(searchString);
-            console.log("initial html: " + $(self.el).html());
-            $(self.el).empty();
-            console.log("html after empty(): " + $(self.el).html());
-            $(self.el).append("hihihih");
-            this.collection.models.forEach(function(model) {
-                $(self.el).append("<div>" + model.get("name") + "</div>");
-            });
-            
-        }
-    })
-    /*
-    // el must be set at creation to render properly
-    SearchView: Backbone.View.extend({
-        initialize: function() {
-            // pass in specialized reset function
-            this.collection = new HAPPENING.collections.AutosuggestResultCollection({
-                reset: function(searchString) {
-                    var self = this;
-                    var possibleThemes = HAPPENING.utils.makeApiCall('js/themes-data.js');
-                    possibleThemes = possibleThemes.filter(function(possibleTheme) {
-                        if (possibleTheme.name.substring(0, searchString.length).toLowerCase() === searchString.toLowerCase()) {
-                            return true;
-                        };
-                    });
-                    // add each theme that made it through the filter to the collection
-                    possibleThemes.forEach(function(possibleTheme){
-                        self.collection.add(possibleTheme);
-                    });
-                }
-            });
-            this.render();
-        },
-        render: function() {
-            $(this.el).empty();
-            var self = this;
-            $(this.el).append("<div><form><input type=\'text\'></form></div>");
-            this.collection.forEach(function(member){
-                $(self.el).append("<div id=\"autosuggest-result\">" + match.name + "</div>");
-            });
-        },
-        events: {
-            'keyup input': 'render',
-            'paste input': 'render'
-            //,'submit form': 'submit'
-        }
-        */
-        /*
-        ,
-        change: function(event) {
-            // the "enter" keyup will trigger both change and submit events unless we filter for it
-            if (event.keyCode === 13) {
-                return;
+            if (searchString === null) {
+                $(self.el).empty();
             }
-            var self = this;
-            var enteredText = $(this.el).find("input").val();
-            if (enteredText !== "" && enteredText !== undefined) {
-                var matches = this.fetchMatchingThemes(enteredText);
-                matches.forEach(function(match){
-                    $(self.el).append("<div id=\"autosuggest-result\">" + match.name + "</div>");
+            else {
+                this.collection.reset(searchString);
+                $(self.el).empty();
+                this.collection.models.forEach(function(model) {
+                    $(self.el).append("<div>" + model.get("name") + "</div>");
                 });
             };
-        },
-        submit: function(event) {
-            $(this.el).find("#autosuggest-result").remove();
-            return false;
         }
-        */
+    }),
+    // TODO add this to make mouseOver events work properly
+    AutosuggestResultView: Backbone.View.extend({
+        tagName: 'div',
+        events: {
+            'mouseover div': function() { console.log("mouseover";) }
+        },
+        initialize: function(
+        ),
+        render: function() {
+            $(this.el).html("an autosuggest result!")
+        }
+    })
 };
 
 // the actual program that makes things happen
