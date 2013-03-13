@@ -1,34 +1,34 @@
 [
     {
-        "ID": 1,
+        "id": 1,
         "name": "Video Games"
     },
     {
-        "ID": 2,
+        "id": 2,
         "name": "Comics"
     },
     {
-        "ID": 3,
+        "id": 3,
         "name": "Music"
     },
     {
-        "ID": 4,
+        "id": 4,
         "name": "Engineering"
     },
     {
-        "ID": 5,
+        "id": 5,
         "name": "Technology"
     },
     {
-        "ID": 6,
+        "id": 6,
         "name": "Design"
     },
     {
-        "ID": 7,
+        "id": 7,
         "name": "Movies"
     },
     {
-        "ID": 8,
+        "id": 8,
         "name": "Anime"
     }
 ]
