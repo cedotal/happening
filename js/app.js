@@ -170,14 +170,8 @@ HAPPENING.collections = {
         },
         // TODO: when a theme has been chosen by the user, the app needs to make the call to the API that just gets ones of that theme, rather than retreiving all and parsing client-side
         initialize: function() {
-            var self = this;
-            // if theme is defined, checkRepeatedly to see if location and/or theme are defined. successCallback is to render, failureCallback is to output a message asking for both theme and location
             this.url = HAPPENING.settings.baseUrl + "/happenings";
-            var successCallback = function() {
-                self.fetch();
-            };
-            var failureCallback = function() {};
-            HAPPENING.utils.checkForValueRepeatedly([HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude], successCallback, failureCallback);
+            this.fetch();
         },
         parse: function(response) {
             // get the currently set theme
@@ -215,7 +209,7 @@ HAPPENING.views = {
             });
         }
     }),
-    // a generic view for autocomplete-enabled search input view. on creation, it needs to have three things passed to it through options: its el, a destination URL for retreiving autosuggest data, a function for turning the data from the URL into the [{label: "foo", value: "bar"}] format that jQuery UI uses, a description attribute that gets inserted into the element
+    // a generic view for autocomplete-enabled search input view. on creation, it needs to have the following things passed to it through options: its el, a destination URL for retreiving autosuggest data, a function for turning the data from the URL into the [{label: "foo", value: "bar"}] format that jQuery UI uses, a description attribute that gets inserted into the element
     SearchView: Backbone.View.extend({
         initialize: function() {
             this.render();
@@ -223,15 +217,14 @@ HAPPENING.views = {
         render: function() {
             var self = this;
             $(this.el).append("<div><form>" + this.options.description + "<input type='text'></input></form></div>");
-            var rawData = HAPPENING.utils.makeHttpRequest(this.options.requestUrl);
-            var processedData = this.options.resultProcessor(rawData);
             $(this.el).find("input").autocomplete({
-                source: processedData,
+                source: function(request, response) {
+                    var rawData = HAPPENING.utils.makeHttpRequest(self.options.resourceUrl);
+                    var processedData = self.options.processData(rawData);
+                    response(processedData);
+                },
                 autoFocus: true,
-                select: function(event, ui) {
-                    console.log(ui.toSource());
-                    HAPPENING.applicationSpace.user.set("currentlyViewedTheme", {"id": parseInt(ui.item.id), "name": ui.item.label});
-                }
+                select: self.options.selectFunction
             });
         }
     }),
@@ -249,7 +242,6 @@ HAPPENING.views = {
                 event.preventDefault();
                 // get the value entered into the form so that it can be used to create a resource
                 var themeName = $(self.el).find("input[type='text']").val();
-                console.log(themeName);
                 // TODO: why is this request failing?
                 var postResponse = HAPPENING.utils.makeHttpRequest(HAPPENING.settings.baseUrl + "/themes?themename=" + themeName, "POST");
             });
@@ -259,41 +251,68 @@ HAPPENING.views = {
         // view renders when created
         initialize: function() {
             this.render();
-            this.locationSearchView = new HAPPENING.views.SearchView({
-                el: "#location-search",
-                description: "Select a new location here:",
-                requestUrl: HAPPENING.settings.baseUrl + '/cities/search',
-                resultProcessor: function(rawData) {
-                    var processedData = [];
-                    rawData.forEach(function(rawSingle) {
-                        processedSingle = {};
-                        processedSingle.label = rawSingle.name;
-                        processedSingle.latitude = rawSingle.latitude;
-                        processedSingle.longitude = rawSingle.longitude;
-                        processedData.push(processedSingle);
-                    });
-                    return processedData;
-                }
-            });
         },
         // renders the location view
         render: function() {
             var renderElement = this.el;
-            $(renderElement).empty();
-            $(renderElement).append("It looks like you're in: [LOADING ANIMATION]");
-            var htmlToInject = "";
-            var successCallback = function() {
-                $(renderElement).empty();
-                $(renderElement).append("Finding happenings near: " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city + ", " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country);
-                $(renderElement).append("<div id=\"location-search\"></div>");
+            $(this.el).empty();
+            $(this.el).append("It looks like you're in: ");
+            if (HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city && HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country) {
+                $(this.el).append(HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city + ", " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country);
+            }
+            else {
+                $(this.el).append("Can't find your location! Please enter it below.");
             };
-            var failureCallback = function() {
-                $(renderElement).empty();
-                $(renderElement).append("We can't seem to detect your location. Please enter one below.");
-                $(renderElement).append("<div id=\"location-search\"></div>");
-            };
-            HAPPENING.utils.checkForValueRepeatedly([HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country], successCallback, failureCallback);
-        }
+            $(this.el).append("<div id=\"location-search\"></div>");
+            this.locationSearchView = new HAPPENING.views.SearchView({
+                el: "#location-search",
+                description: "Select a new location here:",
+                resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
+                processData: function(rawData) {
+                    var processedData = [];
+                    console.log(rawData);
+                    rawData.forEach(function(rawSingle) {
+                        processedSingle = {};
+                        processedSingle.label = rawSingle.name;
+                        processedSingle.id = rawSingle["_id"];
+                        processedSingle.latitude = rawSingle.latitude;
+                        processedSingle.longitude = rawSingle.longitude;
+                        processedSingle.country = rawSingle.countryCode;
+                        processedData.push(processedSingle);
+                    });
+                    return processedData;
+                },
+                selectFunction: function(event, ui) {
+                    HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
+                        "latitude": parseInt(ui.item.latitude), "longitude": parseInt(ui.item.longitude),
+                        "country": ui.item.country,
+                        "city": ui.item.label
+                    });
+                }
+            });
+            /*
+            this.locationSearchView = new HAPPENING.views.SearchView({
+                el: "#location-search",
+                description: "Select a new location here:",
+                resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
+                processResults: function(rawData) {
+                    var self = this;
+                    var processedData = [];
+                    if ($(self.el).find("input").val() !== "") {
+                        rawData.forEach(function(rawSingle) {
+                            processedSingle = {};
+                            processedSingle.label = rawSingle.name;
+                            processedSingle.id = rawSingle["_id"];
+                            processedSingle.latitude = rawSingle.latitude;
+                            processedSingle.longitude = rawSingle.longitude;
+                            processedData.push(processedSingle);
+                        });
+                    };
+                    return processedData;
+                }
+            });
+            */
+        },
     }),
     HappeningsView: Backbone.View.extend({
         initialize: function() {
@@ -306,9 +325,6 @@ HAPPENING.views = {
         },
         // TODO: happenings should really be their own views
         render: function() {
-            console.log("happeningsView rendering");
-            console.log("what render is working from");
-            console.log(this.collection.models.map(function(model) { return model.get("name") }));
             var self = this;
             var htmlToInject = "";
             if (this.collection.length === 0) {
@@ -344,8 +360,8 @@ HAPPENING.views = {
             this.themeSearchView = new HAPPENING.views.SearchView({
                 el: "#theme-search",
                 description: "Select a new theme here:",
-                requestUrl: HAPPENING.settings.baseUrl + '/themes',
-                resultProcessor: function(rawData) {
+                resourceUrl: HAPPENING.settings.baseUrl + '/themes',
+                processData: function(rawData) {
                     var processedData = [];
                     rawData.forEach(function(rawSingle) {
                         processedSingle = {};
@@ -354,6 +370,9 @@ HAPPENING.views = {
                         processedData.push(processedSingle);
                     });
                     return processedData;
+                },
+                selectFunction: function(event, ui) {
+                    HAPPENING.applicationSpace.user.set("currentlyViewedTheme", {"id": parseInt(ui.item.id), "name": ui.item.label});
                 }
             });
         },
