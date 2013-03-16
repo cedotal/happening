@@ -82,38 +82,21 @@ HAPPENING.utils = {
                     'message': "This function shouldn\t be failing, because it shouldn\'t even be called if the geolocation API isn\'t accessible"
                 };
             });
-        };
-        // if none of our location-finding methods work, everything in the object starts as null
-        return locationObject;
-    },
-    // gets a particular parameter's value from the url
-    getUrlParameter: function(name) {
-        return decodeURI(
-            (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
-        );
-    },
-    // function that repeatedly checks whether a value is set, performs a success callback when it's done, and performs a failure callback when it exceeds the timeout value; right now, interval and timeout values are hardcoded 
-    checkForValueRepeatedly: function(valuesToCheck, successCallback, failureCallback) {
-        var counter = 0;
-        var repeatedCheckFunction = function() {
-            var definitionCheckArray = [];
-            valuesToCheck.forEach(function(valueToCheck) {
-                if (typeof valueToCheck === null || typeof valuesToCheck === undefined) {
-                    definitionCheckArray.push(false);
-                };
-            });
-            if (!_.contains(definitionCheckArray, false)) {
-                successCallback();
-                clearInterval(timer);
-            }
-            else if (counter >= 25) {
-                failureCallback();
-            }
-            else {
-                counter++;
+        }
+        // if all else fails, set location to New York, baby!
+        else {
+            locationObject = {
+                'address': {
+                    'city': "New York",
+                    'country': "USA"
+                },
+                'latitude': 40.75,
+                'longitude': -73.997
             };
         };
-        var timer = setInterval(repeatedCheckFunction, 200);
+        
+        // if none of our location-finding methods work, everything in the object starts as null
+        return locationObject;
     }
 };
 
@@ -133,12 +116,10 @@ HAPPENING.models = {
         },
         initialize: function() {
             this.on("change:currentlyViewedLocation", function(model) {
-                console.log("changed location");
                 HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch();
                 HAPPENING.applicationSpace.applicationView.locationView.locationDisplayView.render();
             });
             this.on("change:currentlyViewedTheme", function(model) {
-                console.log("changed theme");
                 HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch();
                 HAPPENING.applicationSpace.applicationView.themeView.themeDisplayView.render();
             });
@@ -205,11 +186,14 @@ HAPPENING.views = {
                 el: "#happenings-container"
             });
             this.themeSubmissionView = new HAPPENING.views.SubmissionView({
-                el: "#theme-submission-container"
+                el: "#theme-submission-container",
+                postUrl: "/themes",
+                postParameters: ["themename"],
+                resourceName: "theme"
             });
         }
     }),
-    // a generic view for autocomplete-enabled search input view. on creation, it needs to have the following things passed to it through options: its el, a destination URL for retreiving autosuggest data, a function for turning the data from the URL into the [{label: "foo", value: "bar"}] format that jQuery UI uses, a description attribute that gets inserted into the element
+    // a generic view for autocomplete-enabled search input view
     SearchView: Backbone.View.extend({
         initialize: function() {
             this.render();
@@ -219,7 +203,8 @@ HAPPENING.views = {
             $(this.el).append("<div><form>" + this.options.description + "<input type='text'></input></form></div>");
             $(this.el).find("input").autocomplete({
                 source: function(request, response) {
-                    var rawData = HAPPENING.utils.makeHttpRequest(self.options.resourceUrl);
+                    var searchString = request.term;
+                    var rawData = HAPPENING.utils.makeHttpRequest(self.options.resourceUrl + '?searchstring=' + searchString);
                     var processedData = self.options.processData(rawData);
                     response(processedData);
                 },
@@ -236,14 +221,29 @@ HAPPENING.views = {
         },
         render: function() {
             var self = this;
-            $(this.el).html("<div>Submit a new theme here:<form><input type='text'></input><input type='submit' value='Add'></input></form></div>");
+            $(this.el).empty();
+            $(this.el).append("<div>Submit a new " + this.options.resourceName + " here:<form><input type='submit' value='Submit " + this.options.resourceName + "'></input></form></div>");
+            this.options.postParameters.forEach(function(postParameter) {
+                $(self.el).find("form").append("<input id='" + postParameter + "'type='text'></input>");
+            });
             $(this.el).find("form").on("submit", function(event) {
                 // stop the automatic page reload upon form submission
                 event.preventDefault();
-                // get the value entered into the form so that it can be used to create a resource
-                var themeName = $(self.el).find("input[type='text']").val();
-                // TODO: why is this request failing?
-                var postResponse = HAPPENING.utils.makeHttpRequest(HAPPENING.settings.baseUrl + "/themes?themename=" + themeName, "POST");
+                self.options.postParameters.forEach(function(postParameter) {
+                    if ($(self.el).find("#" + postParameter).val() === undefined || $(self.el).find("#" + postParameter).val() === "") {
+                        throw {
+                            name: "all post parameters must be set",
+                            message: "one or more post parameters are not set"
+                        };
+                    }; 
+                });
+                var postRequest = HAPPENING.settings.baseUrl + self.options.postUrl + "?";
+                self.options.postParameters.forEach(function(postParameter){
+                    console.log("handling url parameter addition");
+                    postRequest = postRequest + postParameter + "=" + $(self.el).find("#" + postParameter).val(); + "&";
+                });
+                console.log(postRequest);
+                var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, "POST");
             });
         }
     }),
@@ -254,64 +254,38 @@ HAPPENING.views = {
         },
         // renders the location view
         render: function() {
-            var renderElement = this.el;
-            $(this.el).empty();
-            $(this.el).append("It looks like you're in: ");
-            if (HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city && HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country) {
-                $(this.el).append(HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.city + ", " + HAPPENING.applicationSpace.user.get("currentlyViewedLocation").address.country);
-            }
-            else {
-                $(this.el).append("Can't find your location! Please enter it below.");
-            };
-            $(this.el).append("<div id=\"location-search\"></div>");
+             $(this.el).empty();
+             $(this.el).append("<div id=\"location-display\"></div><div id=\"location-search\"></div>");
+            this.locationDisplayView = new HAPPENING.views.LocationDisplayView({
+                el: "#location-display"
+            });
             this.locationSearchView = new HAPPENING.views.SearchView({
                 el: "#location-search",
                 description: "Select a new location here:",
                 resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
                 processData: function(rawData) {
                     var processedData = [];
-                    console.log(rawData);
-                    rawData.forEach(function(rawSingle) {
-                        processedSingle = {};
-                        processedSingle.label = rawSingle.name;
-                        processedSingle.id = rawSingle["_id"];
-                        processedSingle.latitude = rawSingle.latitude;
-                        processedSingle.longitude = rawSingle.longitude;
-                        processedSingle.country = rawSingle.countryCode;
-                        processedData.push(processedSingle);
-                    });
-                    return processedData;
-                },
-                selectFunction: function(event, ui) {
-                    HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
-                        "latitude": parseInt(ui.item.latitude), "longitude": parseInt(ui.item.longitude),
-                        "country": ui.item.country,
-                        "city": ui.item.label
-                    });
-                }
-            });
-            /*
-            this.locationSearchView = new HAPPENING.views.SearchView({
-                el: "#location-search",
-                description: "Select a new location here:",
-                resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
-                processResults: function(rawData) {
-                    var self = this;
-                    var processedData = [];
-                    if ($(self.el).find("input").val() !== "") {
                         rawData.forEach(function(rawSingle) {
                             processedSingle = {};
                             processedSingle.label = rawSingle.name;
                             processedSingle.id = rawSingle["_id"];
                             processedSingle.latitude = rawSingle.latitude;
                             processedSingle.longitude = rawSingle.longitude;
+                            processedSingle.country = rawSingle.countryCode;
                             processedData.push(processedSingle);
                         });
-                    };
                     return processedData;
+                },
+                selectFunction: function(event, ui) {
+                    HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
+                        "latitude": parseInt(ui.item.latitude), "longitude": parseInt(ui.item.longitude),
+                        'address' : {
+                            "country": ui.item.country,
+                            "city": ui.item.label
+                        }
+                    });
                 }
             });
-            */
         },
     }),
     HappeningsView: Backbone.View.extend({
@@ -369,6 +343,10 @@ HAPPENING.views = {
                         processedSingle.id = rawSingle.id;
                         processedData.push(processedSingle);
                     });
+                    processedData.unshift({
+                        "label": "All Themes",
+                        "id": undefined
+                    });
                     return processedData;
                 },
                 selectFunction: function(event, ui) {
@@ -392,10 +370,27 @@ HAPPENING.views = {
             this.currentlyViewedTheme = HAPPENING.applicationSpace.user.get("currentlyViewedTheme");
             themeHtml = "";
             if (typeof this.currentlyViewedTheme.id === null || typeof this.currentlyViewedTheme.id === undefined || isNaN(parseFloat(this.currentlyViewedTheme.id))) {
-                themeHtml = "Please select a theme.";
+                themeHtml = "Select a theme to narrow down your search";
             }
             else {
                 themeHtml = "You've selected the following theme: " + this.currentlyViewedTheme.name;
+            };
+            $(this.el).append(themeHtml);
+        }
+    }),
+    LocationDisplayView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            $(this.el).empty();
+           var currentlyViewedLocation = HAPPENING.applicationSpace.user.get("currentlyViewedLocation");
+            themeHtml = "";
+            if (typeof currentlyViewedLocation.city === undefined || typeof currentlyViewedLocation.country === undefined) {
+                themeHtml = "Please select a location.";
+            }
+            else {
+                themeHtml = "You've selected the following location: " + currentlyViewedLocation.address.city + ", " + currentlyViewedLocation.address.country;
             };
             $(this.el).append(themeHtml);
         }
