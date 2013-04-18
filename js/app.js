@@ -62,7 +62,7 @@ HAPPENING.utils = {
             locationObject.latitude = google.loader.ClientLocation.latitude,
             locationObject.longitude = google.loader.ClientLocation.longitude;
         }
-        // try the W3C standard API, which requires the user to actively approve
+        // try the W3C standard API, which requires the user to actively assent
         else if (typeof navigator.geolocation.getCurrentPosition !== undefined) {
             navigator.geolocation.getCurrentPosition(
             // first argument is the success function
@@ -94,14 +94,12 @@ HAPPENING.utils = {
                 'longitude': -73.997
             };
         };
-        
-        // if none of our location-finding methods work, everything in the object starts as null
         return locationObject;
     }
 };
 
 HAPPENING.settings = {
-    baseUrl: "http://localhost:8888"
+    baseUrl: "http://localhost:3000"
 };
 
 HAPPENING.models = {
@@ -135,17 +133,21 @@ HAPPENING.models = {
         }
     }),
     Happening: Backbone.Model.extend({
+        initialize: function() {
+            var self = this;
+            var dateArray = {
+                beginDate: new Date(self.get("dates").beginDate),
+                endDate: new Date(self.get("dates").endDate)
+            };
+            this.set("dates", dateArray);
+        },
         distanceFromCurrentlyViewedLocation: function() {
+            console.log(this);
+            console.log(this.get('name'));
             var distanceFromCurrentlyViewedLocation = HAPPENING.utils.calculateDistance(this.get("location").latitude, this.get("location").longitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude);
             return distanceFromCurrentlyViewedLocation;
         },
-        initialize: function() {
-            var dateArray = {
-                beginDate: new Date(this.get("dates").beginDate),
-                endDate: new Date(this.get("dates").endDate)
-            };
-            this.set("dates", dateArray);
-        }
+        idAttribute: '_id'
     }),
     Location: Backbone.Model.extend({
     }),
@@ -160,11 +162,18 @@ HAPPENING.collections = {
         comparator: function(happening){
             return happening.distanceFromCurrentlyViewedLocation();
         },
-        // TODO: when a theme has been chosen by the user, the app needs to make the call to the API that just gets ones of that theme, rather than retreiving all and parsing client-side
         initialize: function() {
             var self = this;
             this.url = function() {
-                return HAPPENING.settings.baseUrl + "/happenings?themeid=" + HAPPENING.applicationSpace.user.get("currentlyViewedTheme").id;
+                var requestUrl = '';
+                requestUrl += HAPPENING.settings.baseUrl;
+                requestUrl += '/happenings';
+                var currentlyViewedTheme = HAPPENING.applicationSpace.user.get("currentlyViewedTheme").id;
+                if (currentlyViewedTheme) {
+                    requestUrl += '?themeid=';
+                    requestUrl += currentlyViewedTheme;
+                };
+                return requestUrl;
             };
             this.fetch({reset: true});
         }
@@ -191,19 +200,25 @@ HAPPENING.views = {
                 postParameters: [
                     { name: "name", type: "string" }
                 ],
-                resourceName: "theme"
+                resourceName: "theme",
+                submitFunction: function() {
+                    HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
+                }
             });
             this.happeningSubmissionView = new HAPPENING.views.SubmissionView({
                 el: "#happening-submission-container",
                 postUrl: "/happenings",
                 postParameters: [
                     { name: "name", type: "string" },
-                    { name: "location", type: "location" },
+                    { name: "cityid", type: "location" },
                     { name: "begindate", type: "date" },
                     { name: "enddate", type: "date" },
-                    { name: "theme", type: "theme" }
+                    { name: "themeid", type: "theme" }
                 ],
-                resourceName: "happening"
+                resourceName: "happening",
+                submitFunction: function() {
+                    HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
+                }
             });
         }
     }),
@@ -245,18 +260,18 @@ HAPPENING.views = {
             // clear el
             $(this.el).empty();
             // add html for the form and the submit button
-            $(this.el).append("<div>Submit a new " + this.options.resourceName + " here:<form><div><input type='submit' value='Submit " + this.options.resourceName + "'></input></div></form></div>");
+            $(this.el).append("<div>Submit a new " + this.options.resourceName + " here:<form></form></div>");
             // for each parameter to be passed by the form, add an appropriate input element
             // TODO: these are behaving strangely because SearchView comes pre-packaged with a form element
             postParameters.forEach(function(postParameter) {
                 if (postParameter.type === "date") {
-                    $(self.el).find("form").prepend("<div id='" + postParameter.name + "'>" + postParameter.name + ":<input type='text' name='" + postParameter.name + "'></input></div>");
+                    $(self.el).find("form").append("<div id='" + postParameter.name + "'>" + postParameter.name + ":<input type='text' name='" + postParameter.name + "'></input></div>");
                     $(self.el).find("#" + postParameter.name + " input").datepicker({
                         dateFormat: "yy-mm-dd"
                     });
                 }
                 else if (postParameter.type === "theme") {
-                    $(self.el).find("form").prepend("<div id='" + postParameter.name + "'></div>");
+                    $(self.el).find("form").append("<div id='" + postParameter.name + "'></div>");
                     self.themeInputView = new HAPPENING.views.SearchView({
                         el: "#" + postParameter.name,
                         description: postParameter.name,
@@ -264,23 +279,25 @@ HAPPENING.views = {
                         processData: function(rawData) {
                             var processedData = [];
                             rawData.forEach(function(rawSingle) {
+                                console.log(rawSingle);
                                 processedSingle = {};
                                 processedSingle.label = rawSingle.name;
-                                processedSingle.id = rawSingle.id;
+                                processedSingle.id = rawSingle["_id"];
                                 processedData.push(processedSingle);
                             });
                             return processedData;
                         },
                         selectFunction: function(event, ui) {
+                            console.log(ui);
                             self.theme = new HAPPENING.models.Theme({
-                                id: parseInt(ui.item.id),
+                                id: ui.item.id,
                                 name: ui.item.label
                             });
                         }
                     });
                 }
                 else if (postParameter.type === "location") {
-                    $(self.el).find("form").prepend("<div id='" + postParameter.name + "'></div>");
+                    $(self.el).find("form").append("<div id='" + postParameter.name + "'></div>");
                     self.locationInputView = new HAPPENING.views.SearchView({
                         el: "#" + postParameter.name,
                         description: postParameter.name,
@@ -299,21 +316,24 @@ HAPPENING.views = {
                             return processedData;
                         },
                         selectFunction: function(event, ui) {
+                            console.log(ui);
                             self.location = new HAPPENING.models.Location({
                                 "latitude": ui.item.latitude,
                                 "longitude": ui.item.longitude,
                                 'address' : {
                                     "country": ui.item.country,
-                                    "city": ui.item.label
+                                    "city": ui.item.label,
+                                    cityId: ui.item.id
                                 }
                             });
                         }
                     });
                 }
                 else {
-                    $(self.el).find("form").prepend("<div id='" + postParameter.name + "'>" + postParameter.name + ":<input type='text' name='" + postParameter.name + "'></input></div>");
+                    $(self.el).find("form").append("<div id='" + postParameter.name + "'>" + postParameter.name + ":<input type='text' name='" + postParameter.name + "'></input></div>");
                 };
             });
+            $(this.el).find("form").append("<div><input type='submit' value='Submit " + this.options.resourceName + "'></input></div>");
             // create the event that makes a post request upon submitting the form
             $(this.el).find("form").on("submit", function(event) {
                 // stop the automatic page reload upon form submission
@@ -330,21 +350,14 @@ HAPPENING.views = {
                 var postRequest = HAPPENING.settings.baseUrl + self.options.postUrl + "?";
                 postParameters.forEach(function(postParameter) {
                     if (postParameter.type === "theme") {
-                        postRequest += "theme=";
+                        postRequest += "themeid=";
                         postRequest += self.theme.id;
                     }
                     else if (postParameter.type === "location") {
-                        postRequest += "latitude=";
-                        postRequest += self.location.get("latitude");
-                        postRequest += "&";
-                        postRequest += "longitude=";
-                        postRequest += self.location.get("longitude");
-                        postRequest += "&";
-                        postRequest += "city=";
-                        postRequest += self.location.get("address").city;
-                        postRequest += "&";
-                        postRequest += "country=";
-                        postRequest += self.location.get("address").country;
+                        postRequest += "cityid=";
+                        console.log("city object:");
+                        console.log(self.location);
+                        postRequest += self.location.get("address").cityId;
                     }
                     else {
                         postRequest += postParameter.name;
@@ -354,6 +367,7 @@ HAPPENING.views = {
                     postRequest += "&";
                 });                
                 var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, "POST");
+                self.options.submitFunction();
             });
         }
     }),
@@ -403,13 +417,14 @@ HAPPENING.views = {
         initialize: function() {
             // append a loading animation to tide us over until the collection resets
             $(this.el).html("[LOADING ANIMATION]");
-            // create a new collection, which will fetch models and trigger a redraw of this view ehn
+            // create a new collection, which will fetch models and trigger a redraw of this view
             this.collection = new HAPPENING.collections.HappeningCollection();
             // set this view to render whenever its collection resets
             this.listenTo(this.collection, 'reset', this.render);
         },
         // TODO: happenings should really be their own views
         render: function() {
+            console.log('rendering happeningsView');
             var self = this;
             var htmlToInject = "";
             if (this.collection.length === 0) {
@@ -421,9 +436,9 @@ HAPPENING.views = {
                 _(self.collection.models).each(function(happeningObject) {
                     var happeningData = {
                         "name": happeningObject.get("name"),
-                        "beginDate": happeningObject.get("dates").beginDate.getFullYear().toString() + happeningObject.get("dates").beginDate.getMonth() + happeningObject.get("dates").beginDate.getDate(),
-                        "endDate": happeningObject.get("dates").endDate.getFullYear().toString() + happeningObject.get("dates").endDate.getMonth() + happeningObject.get("dates").endDate.getDate(),
-                        "city": happeningObject.get("location").address.city
+                        "beginDate": happeningObject.get("dates").beginDate.getFullYear().toString() + "-" + happeningObject.get("dates").beginDate.getMonth() + "-" + happeningObject.get("dates").beginDate.getDate(),
+                        "endDate": happeningObject.get("dates").endDate.getFullYear().toString() + "-" + happeningObject.get("dates").endDate.getMonth() + "-" + happeningObject.get("dates").endDate.getDate(),
+                        "city": happeningObject.get("location").city.name;
                     };
                     if (HAPPENING.applicationSpace.user.isLocationDefined()) {
                         happeningData.distanceFromUserLocation = (Math.floor(happeningObject.distanceFromCurrentlyViewedLocation()) || happeningObject.distanceFromCurrentlyViewedLocation().toFixed(1)).toString() + " miles away";
