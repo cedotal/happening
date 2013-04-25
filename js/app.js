@@ -142,8 +142,6 @@ HAPPENING.models = {
             this.set("dates", dateArray);
         },
         distanceFromCurrentlyViewedLocation: function() {
-            console.log(this);
-            console.log(this.get('name'));
             var distanceFromCurrentlyViewedLocation = HAPPENING.utils.calculateDistance(this.get("location").latitude, this.get("location").longitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude);
             return distanceFromCurrentlyViewedLocation;
         },
@@ -198,7 +196,11 @@ HAPPENING.views = {
                 el: "#theme-submission-container",
                 postUrl: "/themes",
                 postParameters: [
-                    { name: "name", type: "string" }
+                    {
+                        label: 'What\'s the name of this theme?',
+                        id: 'name',
+                        type: "string"
+                    }
                 ],
                 resourceName: "theme",
                 submitFunction: function() {
@@ -209,11 +211,31 @@ HAPPENING.views = {
                 el: "#happening-submission-container",
                 postUrl: "/happenings",
                 postParameters: [
-                    { name: "name", type: "string" },
-                    { name: "cityid", type: "location" },
-                    { name: "begindate", type: "date" },
-                    { name: "enddate", type: "date" },
-                    { name: "themeid", type: "theme" }
+                    {
+                        label: 'What\'s this happening called?',
+                        id: "name",
+                        type: "string"
+                    },
+                    {
+                        label: 'Where does it take place?',
+                        id: "cityid",
+                        type: "location"
+                    },
+                    {
+                        label: 'When does it start?',
+                        id: "begindate",
+                        type: "date"
+                    },
+                    {
+                        label: 'When does it end?',
+                        id: "enddate",
+                        type: "date"
+                    },
+                    {
+                        label: 'What\'s it all about?',
+                        id: "themeid",
+                        type: "theme" 
+                    }
                 ],
                 resourceName: "happening",
                 submitFunction: function() {
@@ -260,26 +282,24 @@ HAPPENING.views = {
             // clear el
             $(this.el).empty();
             // add html for the form and the submit button
-            $(this.el).append("<div>Submit a new " + this.options.resourceName + " here:<form></form></div>");
+            $(this.el).append("<div>Submit a new " + this.options.resourceName + " here<form></form></div>");
             // for each parameter to be passed by the form, add an appropriate input element
-            // TODO: these are behaving strangely because SearchView comes pre-packaged with a form element
             postParameters.forEach(function(postParameter) {
                 if (postParameter.type === "date") {
-                    $(self.el).find("form").append("<div id='" + postParameter.name + "'>" + postParameter.name + ":<input type='text' name='" + postParameter.name + "'></input></div>");
-                    $(self.el).find("#" + postParameter.name + " input").datepicker({
+                    $(self.el).find("form").append("<div id='" + postParameter.id + "'>" + postParameter.label + "<input type='text' name='" + postParameter.id + "'></input></div>");
+                    $(self.el).find("#" + postParameter.id + " input").datepicker({
                         dateFormat: "yy-mm-dd"
                     });
                 }
                 else if (postParameter.type === "theme") {
-                    $(self.el).find("form").append("<div id='" + postParameter.name + "'></div>");
+                    $(self.el).find("form").append("<div id='" + postParameter.id + "'></div>");
                     self.themeInputView = new HAPPENING.views.SearchView({
-                        el: "#" + postParameter.name,
-                        description: postParameter.name,
+                        el: "#" + postParameter.id,
+                        description: postParameter.label,
                         resourceUrl: HAPPENING.settings.baseUrl + '/themes/search',
                         processData: function(rawData) {
                             var processedData = [];
                             rawData.forEach(function(rawSingle) {
-                                console.log(rawSingle);
                                 processedSingle = {};
                                 processedSingle.label = rawSingle.name;
                                 processedSingle.id = rawSingle["_id"];
@@ -288,7 +308,6 @@ HAPPENING.views = {
                             return processedData;
                         },
                         selectFunction: function(event, ui) {
-                            console.log(ui);
                             self.theme = new HAPPENING.models.Theme({
                                 id: ui.item.id,
                                 name: ui.item.label
@@ -297,40 +316,39 @@ HAPPENING.views = {
                     });
                 }
                 else if (postParameter.type === "location") {
-                    $(self.el).find("form").append("<div id='" + postParameter.name + "'></div>");
+                    $(self.el).find("form").append("<div id='" + postParameter.id + "'></div>");
                     self.locationInputView = new HAPPENING.views.SearchView({
-                        el: "#" + postParameter.name,
-                        description: postParameter.name,
+                        el: "#" + postParameter.id,
+                        description: postParameter.label,
                         resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
                         processData: function(rawData) {
                             var processedData = [];
-                                rawData.forEach(function(rawSingle) {
-                                    processedSingle = {};
-                                    processedSingle.label = rawSingle.name;
-                                    processedSingle.id = rawSingle["_id"];
-                                    processedSingle.latitude = rawSingle.latitude;
-                                    processedSingle.longitude = rawSingle.longitude;
-                                    processedSingle.country = rawSingle.countryCode;
-                                    processedData.push(processedSingle);
-                                });
+                            rawData.forEach(function(rawSingle) {
+                                processedSingle = {};
+                                processedSingle.label = rawSingle.name;
+                                processedSingle.cityId = rawSingle.geonameID;
+                                processedSingle.latitude = rawSingle.latitude;
+                                processedSingle.longitude = rawSingle.longitude;
+                                processedSingle.country = rawSingle.countryCode;
+                                processedData.push(processedSingle);
+                            });
                             return processedData;
                         },
                         selectFunction: function(event, ui) {
-                            console.log(ui);
                             self.location = new HAPPENING.models.Location({
                                 "latitude": ui.item.latitude,
                                 "longitude": ui.item.longitude,
                                 'address' : {
                                     "country": ui.item.country,
                                     "city": ui.item.label,
-                                    cityId: ui.item.id
+                                    "cityId": ui.item.cityId
                                 }
                             });
                         }
                     });
                 }
                 else {
-                    $(self.el).find("form").append("<div id='" + postParameter.name + "'>" + postParameter.name + ":<input type='text' name='" + postParameter.name + "'></input></div>");
+                    $(self.el).find("form").append("<div id='" + postParameter.id + "'>" + postParameter.label + "<input type='text' name='" + postParameter.id + "'></input></div>");
                 };
             });
             $(this.el).find("form").append("<div><input type='submit' value='Submit " + this.options.resourceName + "'></input></div>");
@@ -340,7 +358,7 @@ HAPPENING.views = {
                 event.preventDefault();
                 // check to make sure all inputs are filled in
                 postParameters.forEach(function(postParameter) {
-                    if ($(self.el).find("#" + postParameter.name + " input").val() === undefined || $(self.el).find("#" + postParameter.name + " input").val() === "") {
+                    if ($(self.el).find("#" + postParameter.id + " input").val() === undefined || $(self.el).find("#" + postParameter.id + " input").val() === "") {
                         throw {
                             name: "all post parameters must be set",
                             message: "one or more post parameters are not set"
@@ -355,14 +373,12 @@ HAPPENING.views = {
                     }
                     else if (postParameter.type === "location") {
                         postRequest += "cityid=";
-                        console.log("city object:");
-                        console.log(self.location);
                         postRequest += self.location.get("address").cityId;
                     }
                     else {
-                        postRequest += postParameter.name;
+                        postRequest += postParameter.id;
                         postRequest += "=";
-                        postRequest += $(self.el).find("input[name=\"" + postParameter.name + "\"]").val();
+                        postRequest += $(self.el).find("input[name=\"" + postParameter.id + "\"]").val();
                     };
                     postRequest += "&";
                 });                
@@ -389,16 +405,18 @@ HAPPENING.views = {
                 description: "Select a new location here:",
                 resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
                 processData: function(rawData) {
+                    // TODO: this function doesn't need to be defined twice
+                    console.log('391 is the one being used');
                     var processedData = [];
-                        rawData.forEach(function(rawSingle) {
-                            processedSingle = {};
-                            processedSingle.label = rawSingle.name;
-                            processedSingle.id = rawSingle["_id"];
-                            processedSingle.latitude = rawSingle.latitude;
-                            processedSingle.longitude = rawSingle.longitude;
-                            processedSingle.country = rawSingle.countryCode;
-                            processedData.push(processedSingle);
-                        });
+                    rawData.forEach(function(rawSingle) {
+                        processedSingle = {};
+                           processedSingle.label = rawSingle.name;
+                        processedSingle.id = rawSingle["_id"];
+                        processedSingle.latitude = rawSingle.latitude;
+                        processedSingle.longitude = rawSingle.longitude;
+                        processedSingle.country = rawSingle.countryCode;
+                        processedData.push(processedSingle);
+                    });
                     return processedData;
                 },
                 selectFunction: function(event, ui) {
@@ -438,7 +456,7 @@ HAPPENING.views = {
                         "name": happeningObject.get("name"),
                         "beginDate": happeningObject.get("dates").beginDate.getFullYear().toString() + "-" + happeningObject.get("dates").beginDate.getMonth() + "-" + happeningObject.get("dates").beginDate.getDate(),
                         "endDate": happeningObject.get("dates").endDate.getFullYear().toString() + "-" + happeningObject.get("dates").endDate.getMonth() + "-" + happeningObject.get("dates").endDate.getDate(),
-                        "city": happeningObject.get("location").city.name;
+                        "city": happeningObject.get("location").cityName
                     };
                     if (HAPPENING.applicationSpace.user.isLocationDefined()) {
                         happeningData.distanceFromUserLocation = (Math.floor(happeningObject.distanceFromCurrentlyViewedLocation()) || happeningObject.distanceFromCurrentlyViewedLocation().toFixed(1)).toString() + " miles away";
@@ -467,7 +485,7 @@ HAPPENING.views = {
                     rawData.forEach(function(rawSingle) {
                         processedSingle = {};
                         processedSingle.label = rawSingle.name;
-                        processedSingle.id = rawSingle.id;
+                        processedSingle.id = rawSingle._id;
                         processedData.push(processedSingle);
                     });
                     processedData.unshift({
@@ -477,7 +495,7 @@ HAPPENING.views = {
                     return processedData;
                 },
                 selectFunction: function(event, ui) {
-                    HAPPENING.applicationSpace.user.set("currentlyViewedTheme", {"id": parseInt(ui.item.id), "name": ui.item.label});
+                    HAPPENING.applicationSpace.user.set("currentlyViewedTheme", {"id": ui.item.id, "name": ui.item.label});
                 }
             });
         },
