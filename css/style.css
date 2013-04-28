@@ -1,0 +1,16 @@
+* {
+    font-family: helvetica;
+}
+
+#wrapper {
+    margin: auto;
+    width: 1200px;
+}
+
+.master-selector-segment {
+    float: left;
+}
+
+#master-selector-container {
+    overflow: hidden;
+}

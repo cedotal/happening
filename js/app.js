@@ -104,22 +104,16 @@ HAPPENING.settings = {
 
 HAPPENING.models = {
     User: Backbone.Model.extend({
-        // on creation, try to populate theme and location preference
         defaults: {
-            currentlyViewedLocation: HAPPENING.utils.findCurrentUserLocation(),
-            currentlyViewedTheme: {
-                "name": null,
-                "id": null
-            }
+            currentlyViewedLocation: undefined,
+            currentlyViewedTheme: undefined
         },
         initialize: function() {
             this.on("change:currentlyViewedLocation", function(model) {
                 HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
-                HAPPENING.applicationSpace.applicationView.locationView.locationDisplayView.render();
             });
             this.on("change:currentlyViewedTheme", function(model) {
                 HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
-                HAPPENING.applicationSpace.applicationView.themeView.themeDisplayView.render();
             });
         },
         // a function that returns true if the user's location is defined sufficiently for the purposes of geodesy and information display, and returns false if it isn't
@@ -166,14 +160,18 @@ HAPPENING.collections = {
                 var requestUrl = '';
                 requestUrl += HAPPENING.settings.baseUrl;
                 requestUrl += '/happenings';
-                var currentlyViewedTheme = HAPPENING.applicationSpace.user.get("currentlyViewedTheme").id;
-                if (currentlyViewedTheme) {
+                if (HAPPENING.applicationSpace.user.get("currentlyViewedTheme") !== undefined) {
+                    var currentlyViewedThemeId = HAPPENING.applicationSpace.user.get("currentlyViewedTheme").id
+                }
+                else {
+                    var currentlyViewedThemeId = undefined;
+                };
+                if (currentlyViewedThemeId !== undefined) {
                     requestUrl += '?themeid=';
-                    requestUrl += currentlyViewedTheme;
+                    requestUrl += currentlyViewedThemeId;
                 };
                 return requestUrl;
             };
-            this.fetch({reset: true});
         }
     })
 };
@@ -182,15 +180,14 @@ HAPPENING.views = {
     // this master view doesn't actually get rendered, it just renders other views
     ApplicationView: Backbone.View.extend({
         initialize: function() {
-            // initialize (and self-render) all the necessary views
-            this.locationView = new HAPPENING.views.LocationView({
-                el: "#user-location"
-            });
-            this.themeView = new HAPPENING.views.ThemeView({
-                el: "#theme-selector"
-            });
             this.happeningsView = new HAPPENING.views.HappeningsView({
                 el: "#happenings-container"
+            });
+        },
+        initializeOtherThanHappeningsView: function() {
+            // initialize (and self-render) all the necessary views
+            this.masterSelectorView = new HAPPENING.views.MasterSelectorView({
+                el: "#master-selector-container"
             });
             this.themeSubmissionView = new HAPPENING.views.SubmissionView({
                 el: "#theme-submission-container",
@@ -242,6 +239,96 @@ HAPPENING.views = {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
                 }
             });
+            this.toolbarView = new HAPPENING.views.ToolbarView({
+                el: '#toolbar'
+            });
+        }
+    }),
+    MasterSelectorView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            $(this.el).append('<span class="master-selector-segment">You\'re viewing</span>');
+            $(this.el).append('<span class="master-selector-segment"  id="theme-selector"></span>');
+            $(this.el).append('<span class="master-selector-segment">near</span>');
+            $(this.el).append('<span class="master-selector-segment"  id="location-selector"></span>');
+            $(this.el).append('<span class="master-selector-segment">.</span>');
+            this.themeSearchView = new HAPPENING.views.SearchView({
+                el: "#theme-selector",
+                addFormElement: true,
+                resourceUrl: HAPPENING.settings.baseUrl + '/themes/search',
+                processData: function(rawData) {
+                    var processedData = [];
+                    rawData.forEach(function(rawSingle) {
+                        processedSingle = {};
+                        processedSingle.label = rawSingle.name;
+                        processedSingle.id = rawSingle._id;
+                        processedData.push(processedSingle);
+                    });
+                    processedData.unshift({
+                        "label": "All Happenings",
+                        "id": undefined
+                    });
+                    return processedData;
+                },
+                selectFunction: function(event, ui) {
+                    HAPPENING.applicationSpace.user.set("currentlyViewedTheme", {"id": ui.item.id, "name": ui.item.label});
+                }
+            });
+            this.locationSearchView = new HAPPENING.views.SearchView({
+                el: "#location-selector",
+                addFormElement: true,
+                resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
+                processData: function(rawData) {
+                    // TODO: this function doesn't need to be defined twice
+                    console.log('391 is the one being used');
+                    var processedData = [];
+                    rawData.forEach(function(rawSingle) {
+                        processedSingle = {};
+                           processedSingle.label = rawSingle.name;
+                        processedSingle.id = rawSingle["_id"];
+                        processedSingle.latitude = rawSingle.latitude;
+                        processedSingle.longitude = rawSingle.longitude;
+                        processedSingle.country = rawSingle.countryCode;
+                        processedData.push(processedSingle);
+                    });
+                    return processedData;
+                },
+                selectFunction: function(event, ui) {
+                    HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
+                        "latitude": ui.item.latitude, "longitude": ui.item.longitude,
+                        'address' : {
+                            "country": ui.item.country,
+                            "city": ui.item.label
+                        }
+                    });
+                }
+            });
+            // initial population of theme and location fields
+            // a dummy event argument is required to make selectFunction work
+            var dummyEvent = undefined;
+            // get user's currently selected location and convert it into an object that can be passed to selectFunction
+            var locationSearchUi = {};
+            var currentLocation = HAPPENING.utils.findCurrentUserLocation();
+            locationSearchUi.item = {
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                country: currentLocation.address.country,
+                label:  currentLocation.address.city
+            };
+            // get user's currently selected theme and convert it into an object that can be passed to selectFunction
+            var themeSearchUi = {};
+            themeSearchUi.item = {
+                id: undefined,
+                label: 'All Happenings'
+            };
+            // trigger selectFunction for inputs, using appropriate ui objects 
+            this.themeSearchView.options.selectFunction(dummyEvent, themeSearchUi);
+            this.locationSearchView.options.selectFunction(dummyEvent, locationSearchUi);
+            // the jQuery mobile autocomplete module doesn't change input element values when a select event is called manually, so we do it ourselves here
+            $(this.themeSearchView.el).find('input').val(themeSearchUi.item.label);
+            $(this.locationSearchView.el).find('input').val(locationSearchUi.item.label);
         }
     }),
     // a generic view for autocomplete-enabled search input view
@@ -252,10 +339,10 @@ HAPPENING.views = {
         render: function() {
             var self = this;
             if (this.options.addFormElement === true) {
-                $(this.el).append("<div><form>" + this.options.description + "<input type='text'></input></form></div>");
+                $(this.el).append("<form>" + (this.options.description || "") + "<input type='text'></input></form>");
             }
             else {
-                $(this.el).append("<div>" + this.options.description + "<input type='text' name='" + this.options.description + "'></input></div>");
+                $(this.el).append((this.options.description || "") + "<input type='text' name='" + (this.options.description || "") + "'></input>");
             };
             $(this.el).find("input").autocomplete({
                 source: function(request, response) {
@@ -387,50 +474,6 @@ HAPPENING.views = {
             });
         }
     }),
-    LocationView: Backbone.View.extend({
-        // view renders when created
-        initialize: function() {
-            this.render();
-        },
-        // renders the location view
-        render: function() {
-             $(this.el).empty();
-             $(this.el).append("<div id=\"location-display\"></div><div id=\"location-search\"></div>");
-            this.locationDisplayView = new HAPPENING.views.LocationDisplayView({
-                el: "#location-display"
-            });
-            this.locationSearchView = new HAPPENING.views.SearchView({
-                el: "#location-search",
-                addFormElement: true,
-                description: "Select a new location here:",
-                resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
-                processData: function(rawData) {
-                    // TODO: this function doesn't need to be defined twice
-                    console.log('391 is the one being used');
-                    var processedData = [];
-                    rawData.forEach(function(rawSingle) {
-                        processedSingle = {};
-                           processedSingle.label = rawSingle.name;
-                        processedSingle.id = rawSingle["_id"];
-                        processedSingle.latitude = rawSingle.latitude;
-                        processedSingle.longitude = rawSingle.longitude;
-                        processedSingle.country = rawSingle.countryCode;
-                        processedData.push(processedSingle);
-                    });
-                    return processedData;
-                },
-                selectFunction: function(event, ui) {
-                    HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
-                        "latitude": ui.item.latitude, "longitude": ui.item.longitude,
-                        'address' : {
-                            "country": ui.item.country,
-                            "city": ui.item.label
-                        }
-                    });
-                }
-            });
-        },
-    }),
     HappeningsView: Backbone.View.extend({
         initialize: function() {
             // append a loading animation to tide us over until the collection resets
@@ -442,7 +485,6 @@ HAPPENING.views = {
         },
         // TODO: happenings should really be their own views
         render: function() {
-            console.log('rendering happeningsView');
             var self = this;
             var htmlToInject = "";
             if (this.collection.length === 0) {
@@ -468,84 +510,65 @@ HAPPENING.views = {
             $(this.el).html(htmlToInject);
         }
     }),
-    ThemeView: Backbone.View.extend({
-        // view renders when created
-        initialize: function() {
-            this.render();
-            this.themeDisplayView = new HAPPENING.views.ThemeDisplayView({
-                el: "#theme-display"
-            });
-            this.themeSearchView = new HAPPENING.views.SearchView({
-                el: "#theme-search",
-                addFormElement: true,
-                description: "Select a new theme here:",
-                resourceUrl: HAPPENING.settings.baseUrl + '/themes/search',
-                processData: function(rawData) {
-                    var processedData = [];
-                    rawData.forEach(function(rawSingle) {
-                        processedSingle = {};
-                        processedSingle.label = rawSingle.name;
-                        processedSingle.id = rawSingle._id;
-                        processedData.push(processedSingle);
-                    });
-                    processedData.unshift({
-                        "label": "All Themes",
-                        "id": undefined
-                    });
-                    return processedData;
-                },
-                selectFunction: function(event, ui) {
-                    HAPPENING.applicationSpace.user.set("currentlyViewedTheme", {"id": ui.item.id, "name": ui.item.label});
-                }
-            });
-        },
-        // create fixtures for sub-views
-        render: function() {
-            $(this.el).empty();
-            $(this.el).append("<div id=\"theme-display\"></div>");
-            $(this.el).append("<div id=\"theme-search\"></div>");
-        }
-    }),
-    ThemeDisplayView: Backbone.View.extend({
+    ToolbarView: Backbone.View.extend({
         initialize: function() {
             this.render();
         },
         render: function() {
             $(this.el).empty();
-            this.currentlyViewedTheme = HAPPENING.applicationSpace.user.get("currentlyViewedTheme");
-            themeHtml = "";
-            if (typeof this.currentlyViewedTheme.id === null || typeof this.currentlyViewedTheme.id === undefined || isNaN(parseFloat(this.currentlyViewedTheme.id))) {
-                themeHtml = "Select a theme to narrow down your search";
-            }
-            else {
-                themeHtml = "You've selected the following theme: " + this.currentlyViewedTheme.name;
-            };
-            $(this.el).append(themeHtml);
-        }
-    }),
-    LocationDisplayView: Backbone.View.extend({
-        initialize: function() {
-            this.render();
-        },
-        render: function() {
-            $(this.el).empty();
-           var currentlyViewedLocation = HAPPENING.applicationSpace.user.get("currentlyViewedLocation");
-            themeHtml = "";
-            if (typeof currentlyViewedLocation.city === undefined || typeof currentlyViewedLocation.country === undefined) {
-                themeHtml = "Please select a location.";
-            }
-            else {
-                themeHtml = "You've selected the following location: " + currentlyViewedLocation.address.city + ", " + currentlyViewedLocation.address.country;
-            };
-            $(this.el).append(themeHtml);
+            //$(this.el).append('<span id="submit-theme-button"></span>');
+            //$(this.el).append('<span id="submit-happening-button"></span>');
+            // $(this.el).append('<span id="link-copier"></span>');
+            /* this.linkCopierView = new HAPPENING.views.LinkCopierView({
+                el: '#link-copier'
+            }); */
         }
     })
+    /*
+    ,
+    // TODO: clipboarding manipluation is difficult, maybe use: https://github.com/jonrohan/ZeroClipboard
+    LinkCopierView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        events: {
+            'click' : 'copyLink'
+        },
+        copyLink: function() {
+            var currentUrl = Backbone.history.location.href;
+            console.log(currentUrl);
+        },
+        render: function() {
+            $(this.el).empty();
+            $(this.el).append('copy link');
+        }
+    })
+    */
 };
 
-// the actual program that makes things happen
+// TODO: handle initial urls with theme suffixes
+//HAPPENING.router = Backbone.Router.extend({
+//    routes: {
+//        "": "test"
+//    },
+//    test: function() {
+//        console.log('test triggered');
+//    }
+//});
+
+//Backbone.history.start({
+//    root: '/happening/',
+//    pushState: true
+//});
+
+// namespace for the program
 HAPPENING.applicationSpace = {};
 
-HAPPENING.applicationSpace.user = new HAPPENING.models.User;
-
+// create an instance of HappeningsView (program output)
 HAPPENING.applicationSpace.applicationView = new HAPPENING.views.ApplicationView;
 
+// create the User model (program storage)
+HAPPENING.applicationSpace.user = new HAPPENING.models.User;
+
+// create the other application views (program input)
+HAPPENING.applicationSpace.applicationView.initializeOtherThanHappeningsView();
