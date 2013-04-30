@@ -2,15 +2,83 @@
     font-family: helvetica;
 }
 
+html, body {
+    height: 100%;
+    width: 100%
+}
+
+input {
+    position: relative;
+    top: -9px;
+    width: 220px;
+    font-size: 28px;
+    font-weight: bold;
+    text-align: center;
+    margin: 0px 8px 0px 8px;
+    padding: 2px 3px;
+}
+
+input:focus {
+    background-color: #DDDDDD;
+}
+
 #wrapper {
     margin: auto;
     width: 1200px;
+}
+
+#master-selector-container {
+    margin: 0px auto 12px auto;
+    padding: 10px 0px 10px 0px;
+    width: 950px;
+    overflow: hidden;
+    font-size: 28px;
 }
 
 .master-selector-segment {
     float: left;
 }
 
-#master-selector-container {
+#happenings-container {
+    margin: auto;
+    width: 1000px;
+}
+
+#toolbar {
     overflow: hidden;
+}
+
+.submission-view-selector {
+    cursor: pointer;
+    margin: 12px 0px 12px 10px;
+    float: right
+}
+
+.submission-view-modal {
+    position: fixed;
+    top: 100px;
+    left: 250px;
+    background: white;
+    border-style: solid;
+    border-width: 1.5px;
+    border-radius: 1.5px;
+    padding: 10px
+}
+
+.invisible {
+    display: none;
+    z-index: -5
+}
+
+.visible {
+    display: inline;
+    z-index: 5
+}
+
+#modal-underlay {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    background-color: black;
+    opacity: .4
 }

@@ -185,6 +185,9 @@ HAPPENING.views = {
             });
         },
         initializeOtherThanHappeningsView: function() {
+            this.modalUnderlayView = new HAPPENING.views.ModalUnderlayView({
+                el: '#modal-underlay'
+            });
             // initialize (and self-render) all the necessary views
             this.masterSelectorView = new HAPPENING.views.MasterSelectorView({
                 el: "#master-selector-container"
@@ -251,7 +254,7 @@ HAPPENING.views = {
         render: function() {
             $(this.el).append('<span class="master-selector-segment">You\'re viewing</span>');
             $(this.el).append('<span class="master-selector-segment"  id="theme-selector"></span>');
-            $(this.el).append('<span class="master-selector-segment">near</span>');
+            $(this.el).append('<span class="master-selector-segment">happenings near</span>');
             $(this.el).append('<span class="master-selector-segment"  id="location-selector"></span>');
             $(this.el).append('<span class="master-selector-segment">.</span>');
             this.themeSearchView = new HAPPENING.views.SearchView({
@@ -267,7 +270,7 @@ HAPPENING.views = {
                         processedData.push(processedSingle);
                     });
                     processedData.unshift({
-                        "label": "All Happenings",
+                        "label": "Pretty Much All",
                         "id": undefined
                     });
                     return processedData;
@@ -321,7 +324,7 @@ HAPPENING.views = {
             var themeSearchUi = {};
             themeSearchUi.item = {
                 id: undefined,
-                label: 'All Happenings'
+                label: 'Pretty Much All'
             };
             // trigger selectFunction for inputs, using appropriate ui objects 
             this.themeSearchView.options.selectFunction(dummyEvent, themeSearchUi);
@@ -471,7 +474,10 @@ HAPPENING.views = {
                 });                
                 var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, "POST");
                 self.options.submitFunction();
+                HAPPENING.applicationSpace.applicationView.modalUnderlayView.hideSubmissionViews();
             });
+            $(this.el).addClass('submission-view-modal');
+            $(this.el).addClass('invisible');
         }
     }),
     HappeningsView: Backbone.View.extend({
@@ -491,6 +497,10 @@ HAPPENING.views = {
                 htmlToInject = "There don't seem to be any happenings!";
             }
             else {
+                this.collection.forEach(function(happening) {
+                    $(self.el).append(happening.name);
+                });
+                /*
                 var templatize = HAPPENING.utils.templatize;
                 var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%>)</div>";
                 _(self.collection.models).each(function(happeningObject) {
@@ -508,6 +518,16 @@ HAPPENING.views = {
                 });
             };
             $(this.el).html(htmlToInject);
+            */
+            };
+        }
+    }),
+    HappeningView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            $(this.el).append('test happening content');
         }
     }),
     ToolbarView: Backbone.View.extend({
@@ -516,13 +536,60 @@ HAPPENING.views = {
         },
         render: function() {
             $(this.el).empty();
-            //$(this.el).append('<span id="submit-theme-button"></span>');
-            //$(this.el).append('<span id="submit-happening-button"></span>');
+            $(this.el).append('<span id="submit-theme-button"></span>');
+            $(this.el).append('<span id="submit-happening-button"></span>');
             // $(this.el).append('<span id="link-copier"></span>');
+            this.submitThemeButtonView = new HAPPENING.views.SubmissionViewSelectorView({
+                el: '#submit-theme-button',
+                description: 'Submit Theme',
+                targetEl: '#theme-submission-container'
+            });
+            this.submitHappeningButtonView = new HAPPENING.views.SubmissionViewSelectorView({
+                el: '#submit-happening-button',
+                description: 'Submit Happening',
+                targetEl: '#happening-submission-container'
+            });
             /* this.linkCopierView = new HAPPENING.views.LinkCopierView({
                 el: '#link-copier'
             }); */
         }
+    }),
+    SubmissionViewSelectorView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            $(this.el).empty();
+            $(this.el).html('<span class="submission-view-selector">' + this.options.description + '</span>');
+        },
+        events: {
+            click: 'revealTargetEl'
+        },
+        revealTargetEl: function() {
+            $('.submission-view-modal').removeClass('visible');
+            $('.submission-view-modal').addClass('invisible');
+            $(this.options.targetEl).addClass('visible');
+            $('#modal-underlay').addClass('visible');
+        }
+    }),
+    ModalUnderlayView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            $(this.el).addClass('invisible');
+        },
+        events: {
+            click: 'hideSubmissionViews'
+        },
+        hideSubmissionViews: function() {
+            $('.submission-view-modal').removeClass('visible');
+            $('.submission-view-modal').addClass('invisible');
+            $(this.el).removeClass('visible');
+            $(this.el).addClass('invisible');
+            console.log('executing hideSubmissionViews');
+        }
+        
     })
     /*
     ,
