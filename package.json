@@ -1,0 +1,9 @@
+{
+    "name": "happening",
+    "description": "a way to find human gatherings",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "express": "3.1.1"    
+    }
+}

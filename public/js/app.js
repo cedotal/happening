@@ -500,7 +500,7 @@ HAPPENING.views = {
                 this.collection.forEach(function(happening) {
                     $(self.el).append(happening.name);
                 });
-                /*
+                
                 var templatize = HAPPENING.utils.templatize;
                 var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%>)</div>";
                 _(self.collection.models).each(function(happeningObject) {
@@ -518,8 +518,6 @@ HAPPENING.views = {
                 });
             };
             $(this.el).html(htmlToInject);
-            */
-            };
         }
     }),
     HappeningView: Backbone.View.extend({
@@ -614,19 +612,19 @@ HAPPENING.views = {
 };
 
 // TODO: handle initial urls with theme suffixes
-//HAPPENING.router = Backbone.Router.extend({
-//    routes: {
-//        "": "test"
-//    },
-//    test: function() {
-//        console.log('test triggered');
-//    }
-//});
+HAPPENING.router = Backbone.Router.extend({
+    routes: {
+        "": "test"
+    },
+    test: function() {
+        console.log('test triggered');
+    }
+});
 
-//Backbone.history.start({
-//    root: '/happening/',
-//    pushState: true
-//});
+Backbone.history.start({
+    root: '/happening/',
+    pushState: true
+});
 
 // namespace for the program
 HAPPENING.applicationSpace = {};

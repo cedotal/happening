@@ -1,0 +1,3 @@
+# ignore node_modules folder; it should be built with the environment scripts, not carried along with the repo
+
+node_modules/*
