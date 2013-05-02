@@ -494,20 +494,33 @@ HAPPENING.views = {
             var self = this;
             var htmlToInject = "";
             if (this.collection.length === 0) {
-                htmlToInject = "There don't seem to be any happenings!";
+                htmlToInject = "There don't seem to be any happenings for that theme!";
             }
             else {
                 this.collection.forEach(function(happening) {
                     $(self.el).append(happening.name);
                 });
-                
                 var templatize = HAPPENING.utils.templatize;
-                var happeningHTMLTemplate = "<div><%=beginDate%> to <%=endDate%><%=name%><%=city%>(<%=distanceFromUserLocation%>)</div>";
+                var makeDateReadable = function(dateObject) {
+                    var year = dateObject.getFullYear().toString();
+                    var month = dateObject.getMonth().toString();
+                    var day = dateObject.getDate().toString();
+                    return dateObject.toDateString();
+                };
+                var happeningHTMLTemplate = '';
+                happeningHTMLTemplate += "<div class = 'happening-view'>";
+                happeningHTMLTemplate += '<span class="happening-name"><%=name%></span>';
+                happeningHTMLTemplate += '<span class="happening-city"><%=city%></span>';
+                happeningHTMLTemplate += '<span class="happening-date"><%=beginDate%></span>';
+                happeningHTMLTemplate += '<span class="happening-to">to</span>';
+                happeningHTMLTemplate += '<span class="happening-date"><%=endDate%></span>';
+                happeningHTMLTemplate += '<span class="happening-distance">(<%=distanceFromUserLocation%>)</span>';
+                happeningHTMLTemplate += "</div>";
                 _(self.collection.models).each(function(happeningObject) {
                     var happeningData = {
                         "name": happeningObject.get("name"),
-                        "beginDate": happeningObject.get("dates").beginDate.getFullYear().toString() + "-" + happeningObject.get("dates").beginDate.getMonth() + "-" + happeningObject.get("dates").beginDate.getDate(),
-                        "endDate": happeningObject.get("dates").endDate.getFullYear().toString() + "-" + happeningObject.get("dates").endDate.getMonth() + "-" + happeningObject.get("dates").endDate.getDate(),
+                        "beginDate": makeDateReadable(happeningObject.get("dates").beginDate),
+                        "endDate":  makeDateReadable(happeningObject.get("dates").endDate),
                         "city": happeningObject.get("location").cityName
                     };
                     if (HAPPENING.applicationSpace.user.isLocationDefined()) {
@@ -518,14 +531,6 @@ HAPPENING.views = {
                 });
             };
             $(this.el).html(htmlToInject);
-        }
-    }),
-    HappeningView: Backbone.View.extend({
-        initialize: function() {
-            this.render();
-        },
-        render: function() {
-            $(this.el).append('test happening content');
         }
     }),
     ToolbarView: Backbone.View.extend({
@@ -611,20 +616,23 @@ HAPPENING.views = {
     */
 };
 
+/*
+
 // TODO: handle initial urls with theme suffixes
-HAPPENING.router = Backbone.Router.extend({
+HAPPENING.Router = Backbone.Router.extend({
     routes: {
-        "": "test"
+        "/": "test"
     },
     test: function() {
-        console.log('test triggered');
+        console.log('theme test triggered');
     }
 });
 
 Backbone.history.start({
-    root: '/happening/',
     pushState: true
 });
+
+*/
 
 // namespace for the program
 HAPPENING.applicationSpace = {};
