@@ -235,6 +235,11 @@ HAPPENING.views = {
                         label: 'What\'s it all about?',
                         id: "themeid",
                         type: "theme" 
+                    },
+                    {
+                        label: 'What\s the website?',
+                        id: "websiteurl",
+                        type: "string" 
                     }
                 ],
                 resourceName: "happening",
@@ -296,9 +301,20 @@ HAPPENING.views = {
                         processedSingle.country = rawSingle.countryCode;
                         processedData.push(processedSingle);
                     });
+                    // if the user types in a string that matches no cities, we offer them New York as the only option
+                    if (processedData.length === 0) {
+                        processedData.unshift({
+                            label: "New York City",
+                            country: 'US',
+                            latitude: 40.71427,
+                            longitude: -74.00597,
+                            value: 'New York City'
+                        });
+                    };
                     return processedData;
                 },
                 selectFunction: function(event, ui) {
+                    console.log(ui);
                     HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
                         "latitude": ui.item.latitude, "longitude": ui.item.longitude,
                         'address' : {
@@ -315,6 +331,8 @@ HAPPENING.views = {
             var locationSearchUi = {};
             var currentLocation = HAPPENING.utils.findCurrentUserLocation();
             locationSearchUi.item = {
+                // TODO: id being 0 is a hack
+                id: 0,
                 latitude: currentLocation.latitude,
                 longitude: currentLocation.longitude,
                 country: currentLocation.address.country,
@@ -508,13 +526,20 @@ HAPPENING.views = {
                     return dateObject.toDateString();
                 };
                 var happeningHTMLTemplate = '';
-                happeningHTMLTemplate += "<div class = 'happening-view'>";
-                happeningHTMLTemplate += '<span class="happening-name"><%=name%></span>';
-                happeningHTMLTemplate += '<span class="happening-city"><%=city%></span>';
+                happeningHTMLTemplate += "<div class='happening-view'>";
+                happeningHTMLTemplate += '<div class="master-location-view">';
+                happeningHTMLTemplate += '<div class="happening-name"><%=name%>'
+                happeningHTMLTemplate += '</div>';
+                happeningHTMLTemplate += '<div class="happening-city"><%=city%>'
+                happeningHTMLTemplate += '</div>';
+                happeningHTMLTemplate += '<div class="happening-distance">(<%=distanceFromUserLocation%>)';
+                happeningHTMLTemplate += '</div>';
+                happeningHTMLTemplate += '</div>';
+                happeningHTMLTemplate += '<div class="master-date-view">';
                 happeningHTMLTemplate += '<span class="happening-date"><%=beginDate%></span>';
                 happeningHTMLTemplate += '<span class="happening-to">to</span>';
                 happeningHTMLTemplate += '<span class="happening-date"><%=endDate%></span>';
-                happeningHTMLTemplate += '<span class="happening-distance">(<%=distanceFromUserLocation%>)</span>';
+                happeningHTMLTemplate += '</div>';
                 happeningHTMLTemplate += "</div>";
                 _(self.collection.models).each(function(happeningObject) {
                     var happeningData = {

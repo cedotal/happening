@@ -30,9 +30,11 @@ input:focus {
 #master-selector-container {
     margin: 0px auto 12px auto;
     padding: 10px 0px 10px 0px;
-    width: 950px;
+    width: 900px;
     overflow: hidden;
     font-size: 28px;
+    border-width: 0px 0px 1px 0px;
+    border-style: solid;
 }
 
 .master-selector-segment {
@@ -41,7 +43,7 @@ input:focus {
 
 #happenings-container {
     margin: auto;
-    width: 1000px;
+    width: 850px;
 }
 
 #toolbar {
@@ -51,7 +53,11 @@ input:focus {
 .submission-view-selector {
     cursor: pointer;
     margin: 12px 0px 12px 10px;
-    float: right
+    float: right;
+    border-style: solid;
+    border-width: 1.5px;
+    border-radius: 7px;
+    padding: 7px;
 }
 
 .submission-view-modal {
@@ -88,33 +94,39 @@ input:focus {
     overflow: hidden;
 }
 
-.happening-name, .happening-city, .happening-date, .happening-to, .happening-distance {
-    display: block;
-    float: left;
-    margin: 0px 12px 0px 0px;
-    height: 22px;
+.happening-name, .happening-city, .happening-distance {
+    text-align: center;
+    margin: 0px 0px 5px 0px;
+    padding: 0px 0px 5px 0px;
+}
+
+.happening-city, .happening-distance {
+    font-size: 15px;
 }
 
 .happening-name {
     font-weight: bold;
-    width: 245px;
+    font-size: 26px;
+    width: 420px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
-.happening-city {
-    width: 155px;
-}
-
 .happening-date {
-    width: 150px;
+    width: 250px;
 }
 
 .happening-to {
     width: 25px;
+    margin: 0px 15px 0px 15px;
 }
 
-.happening-distance {
-    width: 190px;
+.master-location-view, .master-date-view {
+    display: block;
+    float: left;
+}
+
+.master-date-view {
+    line-height: 90px;
 }
