@@ -6,7 +6,6 @@ var fs = require('fs');
 
 var indexRoute = function(req, res) {
     fs.readFile('public/index.html', 'utf8', function(err, data) {
-        console.log(req.path);
         req.path = '/';
         res.set('Content-Type', 'text/html');
         res.send(data);

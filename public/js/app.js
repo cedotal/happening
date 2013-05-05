@@ -36,7 +36,10 @@ HAPPENING.utils = {
             type: method || "GET"
         })
         .done(function (response) {result = response;});
-        result = $.parseJSON(result);
+        // browsers differ in whether they automatically convert the response to an object or not
+        if (typeof result === 'string') {
+            result = $.parseJSON(result);
+        };
         return result;
     },
     // accepts an ERB-style template string, an object to apply to the string, and returns the templatized string
@@ -239,7 +242,7 @@ HAPPENING.views = {
                     {
                         label: 'What\s the website?',
                         id: "websiteurl",
-                        type: "string" 
+                        type: "url" 
                     }
                 ],
                 resourceName: "happening",
@@ -391,16 +394,15 @@ HAPPENING.views = {
             $(this.el).empty();
             // add html for the form and the submit button
             $(this.el).append("<div>Submit a new " + this.options.resourceName + " here<form></form></div>");
-            // for each parameter to be passed by the form, add an appropriate input element
-            postParameters.forEach(function(postParameter) {
-                if (postParameter.type === "date") {
-                    $(self.el).find("form").append("<div id='" + postParameter.id + "'>" + postParameter.label + "<input type='text' name='" + postParameter.id + "'></input></div>");
+            // functions to create an input based on the type of that input's object
+            var inputConstructionFunctions = {
+                date: function(postParameter) {
+                    $(self.el).find("#" + postParameter.id).append(postParameter.label + "<input type='text' name='" + postParameter.id + "'></input>");
                     $(self.el).find("#" + postParameter.id + " input").datepicker({
                         dateFormat: "yy-mm-dd"
                     });
-                }
-                else if (postParameter.type === "theme") {
-                    $(self.el).find("form").append("<div id='" + postParameter.id + "'></div>");
+                },
+                theme: function(postParameter) {
                     self.themeInputView = new HAPPENING.views.SearchView({
                         el: "#" + postParameter.id,
                         description: postParameter.label,
@@ -422,9 +424,8 @@ HAPPENING.views = {
                             });
                         }
                     });
-                }
-                else if (postParameter.type === "location") {
-                    $(self.el).find("form").append("<div id='" + postParameter.id + "'></div>");
+                },
+                location: function(postParameter) {
                     self.locationInputView = new HAPPENING.views.SearchView({
                         el: "#" + postParameter.id,
                         description: postParameter.label,
@@ -454,45 +455,114 @@ HAPPENING.views = {
                             });
                         }
                     });
+                },
+                _misc: function(postParameter) {
+                    $(self.el).find("#" + postParameter.id).append(postParameter.label + "<input type='text' name='" + postParameter.id + "'></input>");
+                }
+            };
+            // client-side validity checks for the various types of url parameters; corresponds generally to the checks in the server-side application
+            var inputValidityChecks = {
+                number: function(parameter) {
+                    if (isNaN(Number(parameter))) {
+                        return false;
+                    }
+                    else {
+                        return true;
+                    };
+                },
+                string: function(parameter) {
+                    return true;
+                },
+                date: function(parameter) {
+                    if (isNaN(Date.parse(parameter))) {
+                        return false;
+                    }
+                    else {
+                        return true;
+                    };
+                },
+                mongoObjectId: function(parameter) {
+                    var objectIdRegExp = new RegExp("^[0-9a-fA-F]{24}$");
+                    return objectIdRegExp.test(parameter);
+                },
+                url: function(parameter) {
+                    var urlValidity = false;
+                    if (parameter.indexOf('.') !== -1) {
+                        urlValidity = true;
+                    };
+                    return urlValidity;
+                }
+            };
+            postParameters.forEach( function(postParameter) {
+                $(self.el).find("form").append("<div id='" + postParameter.id + "'></div>");
+                if (inputConstructionFunctions[postParameter.type] !== undefined) {
+                    inputConstructionFunctions[postParameter.type](postParameter);
                 }
                 else {
-                    $(self.el).find("form").append("<div id='" + postParameter.id + "'>" + postParameter.label + "<input type='text' name='" + postParameter.id + "'></input></div>");
+                    inputConstructionFunctions['_misc'](postParameter);
                 };
             });
+            // functions for fetching the parameter value when assembling a request url
+            var inputParameterGetters = {
+                themeid: function(postParameter) {
+                    return self.theme.id;
+                },
+                cityid: function(postParameter) {
+                    return self.location.get("address").cityId;
+                },
+                _misc: function(postParameter) {
+                    return $(self.el).find("input[name=\"" + postParameter.id + "\"]").val();
+                }
+            };
+            // append submit button to form
             $(this.el).find("form").append("<div><input type='submit' value='Submit " + this.options.resourceName + "'></input></div>");
             // create the event that makes a post request upon submitting the form
             $(this.el).find("form").on("submit", function(event) {
                 // stop the automatic page reload upon form submission
                 event.preventDefault();
-                // check to make sure all inputs are filled in
-                postParameters.forEach(function(postParameter) {
-                    if ($(self.el).find("#" + postParameter.id + " input").val() === undefined || $(self.el).find("#" + postParameter.id + " input").val() === "") {
-                        throw {
-                            name: "all post parameters must be set",
-                            message: "one or more post parameters are not set"
+                try {
+                    // check to make sure all inputs are filled in
+                    postParameters.forEach(function(postParameter) {
+                        if ($(self.el).find("#" + postParameter.id + " input").val() === undefined || $(self.el).find("#" + postParameter.id + " input").val() === "") {
+                            throw {
+                                name: "all post parameters must be set",
+                                message: "one or more post parameters are not set"
+                            };
+                        }; 
+                    });
+                    // client-side validity checking for input values
+                    postParameters.forEach(function(postParameter) {
+                        if (inputValidityChecks[postParameter.type] !== undefined) {
+                            var inputValue = $(self.el).find("#" + postParameter.id + " input").val();
+                            if (inputValidityChecks[postParameter.type](inputValue) === false) {
+                                throw {
+                                    name: "failed validity check for" + postParameter.id,
+                                    message: 'value ' + inputValue + ' for ' + postParameter.id + 'is invalid'
+                                };
+                            };
+                        }; 
+                    });
+                    var postRequest = HAPPENING.settings.baseUrl + self.options.postUrl + "?";
+                    postParameters.forEach(function(postParameter) {
+                        var parameterValue;
+                        if (inputParameterGetters[postParameter.id] !== undefined) {
+                            parameterValue = inputParameterGetters[postParameter.id](postParameter);
+                        }
+                        else {
+                            parameterValue = inputParameterGetters['_misc'](postParameter);
                         };
-                    }; 
-                });
-                var postRequest = HAPPENING.settings.baseUrl + self.options.postUrl + "?";
-                postParameters.forEach(function(postParameter) {
-                    if (postParameter.type === "theme") {
-                        postRequest += "themeid=";
-                        postRequest += self.theme.id;
-                    }
-                    else if (postParameter.type === "location") {
-                        postRequest += "cityid=";
-                        postRequest += self.location.get("address").cityId;
-                    }
-                    else {
                         postRequest += postParameter.id;
-                        postRequest += "=";
-                        postRequest += $(self.el).find("input[name=\"" + postParameter.id + "\"]").val();
-                    };
-                    postRequest += "&";
-                });                
-                var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, "POST");
-                self.options.submitFunction();
-                HAPPENING.applicationSpace.applicationView.modalUnderlayView.hideSubmissionViews();
+                        postRequest += '=';
+                        postRequest += parameterValue;
+                        postRequest += "&";
+                    });                
+                    var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, "POST");
+                    self.options.submitFunction();
+                    HAPPENING.applicationSpace.applicationView.modalUnderlayView.hideSubmissionViews();
+                } 
+                catch (e) {
+                    alert(e.name + ': ' + e.message)
+                };
             });
             $(this.el).addClass('submission-view-modal');
             $(this.el).addClass('invisible');
@@ -515,9 +585,6 @@ HAPPENING.views = {
                 htmlToInject = "There don't seem to be any happenings for that theme!";
             }
             else {
-                this.collection.forEach(function(happening) {
-                    $(self.el).append(happening.name);
-                });
                 var templatize = HAPPENING.utils.templatize;
                 var makeDateReadable = function(dateObject) {
                     var year = dateObject.getFullYear().toString();
@@ -528,7 +595,7 @@ HAPPENING.views = {
                 var happeningHTMLTemplate = '';
                 happeningHTMLTemplate += "<div class='happening-view'>";
                 happeningHTMLTemplate += '<div class="master-location-view">';
-                happeningHTMLTemplate += '<div class="happening-name"><%=name%>'
+                happeningHTMLTemplate += '<div class="happening-name"><a href="<%=websiteUrl%>"><%=name%></a>'
                 happeningHTMLTemplate += '</div>';
                 happeningHTMLTemplate += '<div class="happening-city"><%=city%>'
                 happeningHTMLTemplate += '</div>';
@@ -546,7 +613,8 @@ HAPPENING.views = {
                         "name": happeningObject.get("name"),
                         "beginDate": makeDateReadable(happeningObject.get("dates").beginDate),
                         "endDate":  makeDateReadable(happeningObject.get("dates").endDate),
-                        "city": happeningObject.get("location").cityName
+                        "city": happeningObject.get("location").cityName,
+                        "websiteUrl": happeningObject.get("websiteUrl")
                     };
                     if (HAPPENING.applicationSpace.user.isLocationDefined()) {
                         happeningData.distanceFromUserLocation = (Math.floor(happeningObject.distanceFromCurrentlyViewedLocation()) || happeningObject.distanceFromCurrentlyViewedLocation().toFixed(1)).toString() + " miles away";
