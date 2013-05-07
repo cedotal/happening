@@ -138,9 +138,13 @@ HAPPENING.models = {
             };
             this.set("dates", dateArray);
         },
-        distanceFromCurrentlyViewedLocation: function() {
-            var distanceFromCurrentlyViewedLocation = HAPPENING.utils.calculateDistance(this.get("location").latitude, this.get("location").longitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").latitude, HAPPENING.applicationSpace.user.get("currentlyViewedLocation").longitude);
-            return distanceFromCurrentlyViewedLocation;
+        distanceFromLocation: function(locationObject) {
+            var lat1 = locationObject.latitude;
+            var long1 = locationObject.longitude;
+            var lat2 = this.get('location').latitude;
+            var long2 = this.get('location').longitude;
+            var distance = HAPPENING.utils.calculateDistance(lat1, long1, lat2, long2);
+            return distance;
         },
         idAttribute: '_id'
     }),
@@ -153,10 +157,27 @@ HAPPENING.models = {
 HAPPENING.collections = {
     HappeningCollection: Backbone.Collection.extend({
         model: HAPPENING.models.Happening,
+        // these functions are used to create comparator functions dynamically based on a target date or location
+        comparatorConstructors: {
+            distanceFromLocation: function(happening, location) {
+                return happening.distanceFromLocation(location);
+            },
+            timeFromDate: function(happening, date) {
+                return happening.get('dates').beginDate - date;
+            }
+        },
         // the comparator function determines sorting
         comparator: function(happening){
-            return happening.distanceFromCurrentlyViewedLocation();
+            return this.comparatorConstructors.distanceFromLocation(happening, HAPPENING.applicationSpace.user.get('currentlyViewedLocation'));
         },
+        // handling function for changing the comparator
+        changeComparator: function(type, target){
+            var newComparator = function(happening) {
+                return this.comparatorConstructors[type](happening, target);
+            };
+            this.comparator = newComparator;
+            this.sort();
+        }, 
         initialize: function() {
             var self = this;
             this.url = function() {
@@ -317,7 +338,6 @@ HAPPENING.views = {
                     return processedData;
                 },
                 selectFunction: function(event, ui) {
-                    console.log(ui);
                     HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
                         "latitude": ui.item.latitude, "longitude": ui.item.longitude,
                         'address' : {
@@ -574,11 +594,13 @@ HAPPENING.views = {
             $(this.el).html("[LOADING ANIMATION]");
             // create a new collection, which will fetch models and trigger a redraw of this view
             this.collection = new HAPPENING.collections.HappeningCollection();
-            // set this view to render whenever its collection resets
+            // set this view to render whenever its collection resets (sorting triggers a reset)
             this.listenTo(this.collection, 'reset', this.render);
+            this.listenTo(this.collection, 'sort', this.render);
         },
         // TODO: happenings should really be their own views
         render: function() {
+            console.log('rendering happeningsView');
             var self = this;
             var htmlToInject = "";
             if (this.collection.length === 0) {
@@ -617,7 +639,8 @@ HAPPENING.views = {
                         "websiteUrl": happeningObject.get("websiteUrl")
                     };
                     if (HAPPENING.applicationSpace.user.isLocationDefined()) {
-                        happeningData.distanceFromUserLocation = (Math.floor(happeningObject.distanceFromCurrentlyViewedLocation()) || happeningObject.distanceFromCurrentlyViewedLocation().toFixed(1)).toString() + " miles away";
+                        // display the distance OR if it rounds to 0, print it out to one decimal place
+                        happeningData.distanceFromUserLocation = (Math.floor(happeningObject.distanceFromLocation(HAPPENING.applicationSpace.user.get('currentlyViewedLocation'))) || happeningObject.distanceFromLocation(HAPPENING.applicationSpace.user.get('currentlyViewedLocation')).toFixed(1)).toString() + " miles away";
                     };
                     // use underscore.js' templating function to create event element
                     htmlToInject += templatize(happeningHTMLTemplate, happeningData);
