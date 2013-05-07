@@ -28,13 +28,11 @@ input:focus {
 }
 
 #master-selector-container {
-    margin: 0px auto 12px auto;
+    margin: 0px auto 6px auto;
     padding: 10px 0px 10px 0px;
     width: 900px;
     overflow: hidden;
     font-size: 28px;
-    border-width: 0px 0px 1px 0px;
-    border-style: solid;
 }
 
 .master-selector-segment {
@@ -58,6 +56,28 @@ input:focus {
     border-width: 1.5px;
     border-radius: 7px;
     padding: 7px;
+}
+
+#master-comparator-selector-view {
+    overflow: hidden;
+    margin: 0px auto 20px auto;
+    padding: 0px 0px 10px 0px;
+    width: 250px;
+    border-width: 0px 0px 1px 0px;
+    border-style: solid;
+}
+
+.comparator-selector-label, .comparator-selector-segment {
+    cursor: pointer;
+    margin: 0px 0px 12px 10px;
+    float: left;
+    padding: 7px;
+}
+
+.comparator-selector-segment {
+    border-style: solid;
+    border-width: 1.5px;
+    border-radius: 7px;
 }
 
 .submission-view-modal {

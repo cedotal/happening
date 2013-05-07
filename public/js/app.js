@@ -288,7 +288,7 @@ HAPPENING.views = {
         },
         render: function() {
             $(this.el).empty();
-            $(this.el).append('<div id="distance-comparator-selector"></div><div id="date-comparator-selector"></div>');
+            $(this.el).append('<div class="comparator-selector-label">Sort By:</div><div id="distance-comparator-selector"></div><div id="date-comparator-selector"></div>');
             this.distanceComparatorSelectorView = new HAPPENING.views.ComparatorSelectorView({
                 el: '#distance-comparator-selector',
                 label: 'Distance',
@@ -690,7 +690,7 @@ HAPPENING.views = {
         render: function() {
             $(this.el).empty;
             $(this.el).append(this.options.label);
-            $(this.el).addClass('comparator-selector');
+            $(this.el).addClass('comparator-selector-segment');
         },
         events: {
             click: 'selectComparator'
