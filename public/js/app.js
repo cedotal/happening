@@ -172,10 +172,13 @@ HAPPENING.collections = {
         },
         // handling function for changing the comparator
         changeComparator: function(type, target){
+            console.log('changeComparator triggered');
             var newComparator = function(happening) {
                 return this.comparatorConstructors[type](happening, target);
             };
             this.comparator = newComparator;
+            console.log(type);
+            console.log(target);
             this.sort();
         }, 
         initialize: function() {
@@ -273,6 +276,34 @@ HAPPENING.views = {
             });
             this.toolbarView = new HAPPENING.views.ToolbarView({
                 el: '#toolbar'
+            });
+            this.masterComparatorSelectorView = new HAPPENING.views.MasterComparatorSelectorView({
+                el: '#master-comparator-selector-view'
+            });
+        }
+    }),
+    MasterComparatorSelectorView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            $(this.el).empty();
+            $(this.el).append('<div id="distance-comparator-selector"></div><div id="date-comparator-selector"></div>');
+            this.distanceComparatorSelectorView = new HAPPENING.views.ComparatorSelectorView({
+                el: '#distance-comparator-selector',
+                label: 'Distance',
+                comparatorConstructor: 'distanceFromLocation',
+                target: function(){
+                    return HAPPENING.applicationSpace.user.get('currentlyViewedLocation');
+                }
+            });
+            this.dateComparatorSelectorView = new HAPPENING.views.ComparatorSelectorView({
+                el: '#date-comparator-selector',
+                label: 'Date',
+                comparatorConstructor: 'timeFromDate',
+                target: function(){
+                    return new Date();
+                }
             });
         }
     }),
@@ -649,6 +680,22 @@ HAPPENING.views = {
             $(this.el).html(htmlToInject);
         }
     }),
+    ComparatorSelectorView: Backbone.View.extend({
+        selectComparator: function(type, target) {
+            HAPPENING.applicationSpace.applicationView.happeningsView.collection.changeComparator(this.options.comparatorConstructor, this.options.target());
+        },
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            $(this.el).empty;
+            $(this.el).append(this.options.label);
+            $(this.el).addClass('comparator-selector');
+        },
+        events: {
+            click: 'selectComparator'
+        }
+    }),
     ToolbarView: Backbone.View.extend({
         initialize: function() {
             this.render();
@@ -706,7 +753,6 @@ HAPPENING.views = {
             $('.submission-view-modal').addClass('invisible');
             $(this.el).removeClass('visible');
             $(this.el).addClass('invisible');
-            console.log('executing hideSubmissionViews');
         }
         
     })
