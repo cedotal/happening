@@ -230,6 +230,7 @@ HAPPENING.views = {
                     }
                 ],
                 resourceName: "theme",
+                label: "Are we missing a certain type of happening? Add it here:",
                 submitFunction: function() {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
                 }
@@ -270,6 +271,7 @@ HAPPENING.views = {
                     }
                 ],
                 resourceName: "happening",
+                label: "Are we missing a particular happening? Add it here:",
                 submitFunction: function() {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
                 }
@@ -444,7 +446,7 @@ HAPPENING.views = {
             // clear el
             $(this.el).empty();
             // add html for the form and the submit button
-            $(this.el).append("<div>Submit a new " + this.options.resourceName + " here<form></form></div>");
+            $(this.el).append("<div>" + this.options.label + "<form></form></div>");
             // functions to create an input based on the type of that input's object
             var inputConstructionFunctions = {
                 date: function(postParameter) {
@@ -633,51 +635,71 @@ HAPPENING.views = {
         render: function() {
             console.log('rendering happeningsView');
             var self = this;
+            $(this.el).empty();
             var htmlToInject = "";
             if (this.collection.length === 0) {
                 htmlToInject = "There don't seem to be any happenings for that theme!";
+                $(this.el).append(htmlToInject);
             }
             else {
-                var templatize = HAPPENING.utils.templatize;
-                var makeDateReadable = function(dateObject) {
-                    var year = dateObject.getFullYear().toString();
-                    var month = dateObject.getMonth().toString();
-                    var day = dateObject.getDate().toString();
-                    return dateObject.toDateString();
-                };
-                var happeningHTMLTemplate = '';
-                happeningHTMLTemplate += "<div class='happening-view'>";
-                happeningHTMLTemplate += '<div class="master-location-view">';
-                happeningHTMLTemplate += '<div class="happening-name"><a href="<%=websiteUrl%>"><%=name%></a>'
-                happeningHTMLTemplate += '</div>';
-                happeningHTMLTemplate += '<div class="happening-city"><%=city%>'
-                happeningHTMLTemplate += '</div>';
-                happeningHTMLTemplate += '<div class="happening-distance">(<%=distanceFromUserLocation%>)';
-                happeningHTMLTemplate += '</div>';
-                happeningHTMLTemplate += '</div>';
-                happeningHTMLTemplate += '<div class="master-date-view">';
-                happeningHTMLTemplate += '<span class="happening-date"><%=beginDate%></span>';
-                happeningHTMLTemplate += '<span class="happening-to">to</span>';
-                happeningHTMLTemplate += '<span class="happening-date"><%=endDate%></span>';
-                happeningHTMLTemplate += '</div>';
-                happeningHTMLTemplate += "</div>";
-                _(self.collection.models).each(function(happeningObject) {
-                    var happeningData = {
-                        "name": happeningObject.get("name"),
-                        "beginDate": makeDateReadable(happeningObject.get("dates").beginDate),
-                        "endDate":  makeDateReadable(happeningObject.get("dates").endDate),
-                        "city": happeningObject.get("location").cityName,
-                        "websiteUrl": happeningObject.get("websiteUrl")
-                    };
-                    if (HAPPENING.applicationSpace.user.isLocationDefined()) {
-                        // display the distance OR if it rounds to 0, print it out to one decimal place
-                        happeningData.distanceFromUserLocation = (Math.floor(happeningObject.distanceFromLocation(HAPPENING.applicationSpace.user.get('currentlyViewedLocation'))) || happeningObject.distanceFromLocation(HAPPENING.applicationSpace.user.get('currentlyViewedLocation')).toFixed(1)).toString() + " miles away";
-                    };
-                    // use underscore.js' templating function to create event element
-                    htmlToInject += templatize(happeningHTMLTemplate, happeningData);
-                });
+                this.addAll();
             };
-            $(this.el).html(htmlToInject);
+        },
+        addOne: function(model){
+            var view = new HAPPENING.views.HappeningView({
+                model: model,
+                el: this.el
+            });
+        },
+        addAll: function() {
+            var self = this;
+            this.collection.each(function(model) {self.addOne(model)});
+        }
+    }),
+    HappeningView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            var templatize = HAPPENING.utils.templatize;
+            var makeDateReadable = function(dateObject) {
+                var year = dateObject.getFullYear().toString();
+                var month = dateObject.getMonth().toString();
+                var day = dateObject.getDate().toString();
+                return dateObject.toDateString();
+            };
+            var happeningHTMLTemplate = '';
+            happeningHTMLTemplate += "<div class='happening-view'>";
+            happeningHTMLTemplate += '<div class="master-location-view">';
+            happeningHTMLTemplate += '<div class="happening-name"><a href="<%=websiteUrl%>"><%=name%></a>'
+            happeningHTMLTemplate += '</div>';
+            happeningHTMLTemplate += '<div class="happening-city"><%=city%>'
+            happeningHTMLTemplate += '</div>';
+            happeningHTMLTemplate += '<div class="happening-distance">(<%=distanceFromUserLocation%>)';
+            happeningHTMLTemplate += '</div>';
+            happeningHTMLTemplate += '</div>';
+            happeningHTMLTemplate += '<div class="master-date-view">';
+            happeningHTMLTemplate += '<span class="happening-date"><%=beginDate%></span>';
+            happeningHTMLTemplate += '<span class="happening-to">to</span>';
+            happeningHTMLTemplate += '<span class="happening-date"><%=endDate%></span>';
+            happeningHTMLTemplate += '</div>';
+            happeningHTMLTemplate += "</div>";
+            console.log(this);
+            var happeningObject = this.model;
+            var happeningData = {
+                "name": happeningObject.get("name"),
+                "beginDate": makeDateReadable(happeningObject.get("dates").beginDate),
+                "endDate":  makeDateReadable(happeningObject.get("dates").endDate),
+                "city": happeningObject.get("location").cityName,
+                "websiteUrl": happeningObject.get("websiteUrl")
+            };
+            if (HAPPENING.applicationSpace.user.isLocationDefined()) {
+                // display the distance OR if it rounds to 0, print it out to one decimal place
+                happeningData.distanceFromUserLocation = (Math.floor(happeningObject.distanceFromLocation(HAPPENING.applicationSpace.user.get('currentlyViewedLocation'))) || happeningObject.distanceFromLocation(HAPPENING.applicationSpace.user.get('currentlyViewedLocation')).toFixed(1)).toString() + " miles away";
+            };
+            // use underscore.js' templating function to create event element
+            htmlToInject = templatize(happeningHTMLTemplate, happeningData);
+            $(this.el).append(htmlToInject);
         }
     }),
     ComparatorSelectorView: Backbone.View.extend({
