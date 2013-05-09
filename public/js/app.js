@@ -172,13 +172,10 @@ HAPPENING.collections = {
         },
         // handling function for changing the comparator
         changeComparator: function(type, target){
-            console.log('changeComparator triggered');
             var newComparator = function(happening) {
                 return this.comparatorConstructors[type](happening, target);
             };
             this.comparator = newComparator;
-            console.log(type);
-            console.log(target);
             this.sort();
         }, 
         initialize: function() {
@@ -230,6 +227,7 @@ HAPPENING.views = {
                     }
                 ],
                 resourceName: "theme",
+                httpMethod: 'POST',
                 label: "Are we missing a certain type of happening? Add it here:",
                 submitFunction: function() {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
@@ -271,7 +269,50 @@ HAPPENING.views = {
                     }
                 ],
                 resourceName: "happening",
+                httpMethod: 'POST',
                 label: "Are we missing a particular happening? Add it here:",
+                submitFunction: function() {
+                    HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
+                }
+            });
+            this.happeningEditView = new HAPPENING.views.SubmissionView({
+                el: "#happening-edit-container",
+                postUrl: "/happenings",
+                postParameters: [
+                    {
+                        label: 'What\'s this happening called?',
+                        id: "name",
+                        type: "string"
+                    },
+                    {
+                        label: 'Where does it take place?',
+                        id: "cityid",
+                        type: "location"
+                    },
+                    {
+                        label: 'When does it start?',
+                        id: "begindate",
+                        type: "date"
+                    },
+                    {
+                        label: 'When does it end?',
+                        id: "enddate",
+                        type: "date"
+                    },
+                    {
+                        label: 'What\'s it all about?',
+                        id: "themeid",
+                        type: "theme" 
+                    },
+                    {
+                        label: 'What\s the website?',
+                        id: "websiteurl",
+                        type: "url" 
+                    }
+                ],
+                resourceName: "happening",
+                httpMethod: 'PUT',
+                label: "Is something about this happening inaccurate? Fix it here:",
                 submitFunction: function() {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
                 }
@@ -457,7 +498,9 @@ HAPPENING.views = {
                 },
                 theme: function(postParameter) {
                     self.themeInputView = new HAPPENING.views.SearchView({
-                        el: "#" + postParameter.id,
+                        el: function() {
+                            return "#" + $(self.el).attr('id') + " #" + postParameter.id;
+                        },
                         description: postParameter.label,
                         resourceUrl: HAPPENING.settings.baseUrl + '/themes/search',
                         processData: function(rawData) {
@@ -480,7 +523,9 @@ HAPPENING.views = {
                 },
                 location: function(postParameter) {
                     self.locationInputView = new HAPPENING.views.SearchView({
-                        el: "#" + postParameter.id,
+                        el: function() {
+                            return "#" + $(self.el).attr('id') + " #" + postParameter.id;
+                        },
                         description: postParameter.label,
                         resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
                         processData: function(rawData) {
@@ -595,6 +640,7 @@ HAPPENING.views = {
                             };
                         }; 
                     });
+                    console.log(self.location);
                     var postRequest = HAPPENING.settings.baseUrl + self.options.postUrl + "?";
                     postParameters.forEach(function(postParameter) {
                         var parameterValue;
@@ -609,7 +655,7 @@ HAPPENING.views = {
                         postRequest += parameterValue;
                         postRequest += "&";
                     });                
-                    var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, "POST");
+                    var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, self.options.httpMethod);
                     self.options.submitFunction();
                     HAPPENING.applicationSpace.applicationView.modalUnderlayView.hideSubmissionViews();
                 } 
@@ -661,6 +707,7 @@ HAPPENING.views = {
             this.render();
         },
         render: function() {
+            var self = this;
             var templatize = HAPPENING.utils.templatize;
             var makeDateReadable = function(dateObject) {
                 var year = dateObject.getFullYear().toString();
@@ -669,7 +716,7 @@ HAPPENING.views = {
                 return dateObject.toDateString();
             };
             var happeningHTMLTemplate = '';
-            happeningHTMLTemplate += "<div class='happening-view'>";
+            happeningHTMLTemplate += "<div class='happening-view' happening-id='" + this.model.get('_id') + "'>";
             happeningHTMLTemplate += '<div class="master-location-view">';
             happeningHTMLTemplate += '<div class="happening-name"><a href="<%=websiteUrl%>"><%=name%></a>'
             happeningHTMLTemplate += '</div>';
@@ -683,8 +730,9 @@ HAPPENING.views = {
             happeningHTMLTemplate += '<span class="happening-to">to</span>';
             happeningHTMLTemplate += '<span class="happening-date"><%=endDate%></span>';
             happeningHTMLTemplate += '</div>';
+            happeningHTMLTemplate += '<div class="select-edit-happening-view">';
             happeningHTMLTemplate += "</div>";
-            console.log(this);
+            happeningHTMLTemplate += "</div>";
             var happeningObject = this.model;
             var happeningData = {
                 "name": happeningObject.get("name"),
@@ -700,7 +748,29 @@ HAPPENING.views = {
             // use underscore.js' templating function to create event element
             htmlToInject = templatize(happeningHTMLTemplate, happeningData);
             $(this.el).append(htmlToInject);
+            this.selectEditHappeningView = new HAPPENING.views.SubmissionViewSelectorView({
+                el: function() {
+                    return '[happening-id="' + self.model.get('_id') + '"] .select-edit-happening-view';
+                },
+                description: 'Edit this Happening',
+                happeningModel: self.model,
+                targetEl: '#happening-edit-container'
+            });
         }
+        // TODO: add fadein and fadeout for edit button
+        /*
+        ,
+        events: {
+            mouseover: 'revealSelectEditHappeningView',
+            mouseout: 'hideSelectEditHappeningView'
+        },
+        revealSelectEditHappeningView: function() {
+            console.log('in');
+        },
+        hideSelectEditHappeningView: function() {
+            console.log('out');
+        }
+        */
     }),
     ComparatorSelectorView: Backbone.View.extend({
         selectComparator: function(type, target) {
@@ -754,10 +824,47 @@ HAPPENING.views = {
             click: 'revealTargetEl'
         },
         revealTargetEl: function() {
+            if (this.options.happeningModel !== undefined) {
+                this.modifyTargetHappeningSubmissionEl();
+            };
             $('.submission-view-modal').removeClass('visible');
             $('.submission-view-modal').addClass('invisible');
             $(this.options.targetEl).addClass('visible');
+            $('#modal-underlay').removeClass('invisible');
             $('#modal-underlay').addClass('visible');
+        },
+        modifyTargetHappeningSubmissionEl: function() {
+            var targetSelector = $(this.options.targetEl);
+            var targetAppPath = HAPPENING.applicationSpace.applicationView.happeningEditView;
+            var happeningModel = this.options.happeningModel;
+            // get values to populate input fields with
+            var name = happeningModel.get('name');
+            var beginDate = happeningModel.get('dates').beginDate.toJSON().split('T')[0];
+            var endDate = happeningModel.get('dates').endDate.toJSON().split('T')[0];
+            var websiteUrl = happeningModel.get('websiteUrl');
+            // TODO: need to get theme name somehow -- all that currently comes back is theme id
+            var cityName = happeningModel.get('location').cityName;
+            // populate input fields with values
+            targetSelector.find('#name input').val(name);
+            targetSelector.find('#begindate input').val(beginDate);
+            targetSelector.find('#enddate input').val(endDate);
+            targetSelector.find('#cityid input').val(cityName);
+            targetSelector.find('#websiteurl input').val(websiteUrl);
+            // get values to store as underlying objects in submission view
+            var locationObject = happeningModel.get('location');
+            var themeId = happeningModel.get('themes')[0];
+            // add underlying objects to submission view
+            // TODO: populate the theme object somehow
+            // populate the location object
+            targetAppPath.location = new HAPPENING.models.Location({
+                "latitude": locationObject.latitude,
+                "longitude": locationObject.longitude,
+                'address' : {
+                    "country": locationObject.countryCode,
+                    "city": locationObject.cityName,
+                    "cityId": locationObject.cityId
+                }
+            });
         }
     }),
     ModalUnderlayView: Backbone.View.extend({
@@ -776,11 +883,10 @@ HAPPENING.views = {
             $(this.el).removeClass('visible');
             $(this.el).addClass('invisible');
         }
-        
     })
     /*
     ,
-    // TODO: clipboarding manipluation is difficult, maybe use: https://github.com/jonrohan/ZeroClipboard
+    // TODO: clipboarding manipluation is diffic    ult, maybe use: https://github.com/jonrohan/ZeroClipboard
     LinkCopierView: Backbone.View.extend({
         initialize: function() {
             this.render();
