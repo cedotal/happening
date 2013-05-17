@@ -2,6 +2,14 @@
     font-family: helvetica;
 }
 
+#master-selector-container {
+    margin: 0px auto 6px auto;
+    padding: 10px 0px 10px 0px;
+    width: 825px;
+    overflow: hidden;
+    font-size: 28px;
+}
+
 html, body {
     height: 100%;
     width: 100%
@@ -27,14 +35,6 @@ input:focus {
     width: 1200px;
 }
 
-#master-selector-container {
-    margin: 0px auto 6px auto;
-    padding: 10px 0px 10px 0px;
-    width: 900px;
-    overflow: hidden;
-    font-size: 28px;
-}
-
 .master-selector-segment {
     float: left;
 }
@@ -50,19 +50,23 @@ input:focus {
 
 .submission-view-selector {
     cursor: pointer;
-    margin: 12px 0px 12px 10px;
-    float: right;
     border-style: solid;
     border-width: 1.5px;
     border-radius: 7px;
     padding: 7px;
 }
 
+#toolbar .submission-view-selector {
+    margin: 12px 0px 12px 10px;
+    float: right;
+}
+
+
 #master-comparator-selector-view {
     overflow: hidden;
     margin: 0px auto 20px auto;
     padding: 0px 0px 10px 0px;
-    width: 250px;
+    width: 280px;
     border-width: 0px 0px 1px 0px;
     border-style: solid;
 }
@@ -81,14 +85,20 @@ input:focus {
 }
 
 .submission-view-modal {
-    position: fixed;
+    position: absolute;
     top: 100px;
     left: 250px;
+    width: 850px;
     background: white;
     border-style: solid;
     border-width: 1.5px;
     border-radius: 1.5px;
     padding: 10px
+}
+
+.submission-view-header, .submission-view-description {
+    display: block;
+    text-align: center;
 }
 
 .invisible {
@@ -102,7 +112,7 @@ input:focus {
 }
 
 #modal-underlay {
-    position: absolute;
+    position: fixed;
     height: 100%;
     width: 100%;
     background-color: black;
@@ -142,11 +152,26 @@ input:focus {
     margin: 0px 15px 0px 15px;
 }
 
-.master-location-view, .master-date-view {
+.master-location-view, .master-date-and-edit-view {
     display: block;
     float: left;
 }
 
+.master-date-and-edit-view {
+    position: relative;
+}
+
+.master-date-view, .master-date-and-edit-view .submission-view-selector {
+    position: absolute;
+}
+
 .master-date-view {
-    line-height: 90px;
+    top: 7px;
+    left: 7px;
+    width: 300px;
+}
+
+.master-date-and-edit-view .submission-view-selector {
+    width: 140px;
+    left: 65px;
 }

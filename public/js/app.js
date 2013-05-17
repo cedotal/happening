@@ -228,7 +228,9 @@ HAPPENING.views = {
                 ],
                 resourceName: "theme",
                 httpMethod: 'POST',
-                label: "Are we missing a certain type of happening? Add it here:",
+                header: "Add Theme",
+                description: 'Are we missing a theme? Add it here.',
+                submitText: 'Add This Theme',
                 submitFunction: function() {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
                 }
@@ -270,7 +272,9 @@ HAPPENING.views = {
                 ],
                 resourceName: "happening",
                 httpMethod: 'POST',
-                label: "Are we missing a particular happening? Add it here:",
+                header: "Add a New Happening",
+                description: 'Are we missing a particular happening? Add it here.',
+                submitText: 'Add This Happening',
                 submitFunction: function() {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
                 }
@@ -312,7 +316,9 @@ HAPPENING.views = {
                 ],
                 resourceName: "happening",
                 httpMethod: 'PUT',
-                label: "Is something about this happening inaccurate? Fix it here:",
+                header: 'Edit Happening',
+                description: 'Is something about this happening inaccurate? Fix it here.',
+                submitText: 'Change it!',
                 submitFunction: function() {
                     HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
                 }
@@ -355,7 +361,7 @@ HAPPENING.views = {
             this.render();
         },
         render: function() {
-            $(this.el).append('<span class="master-selector-segment">You\'re viewing</span>');
+            $(this.el).append('<span class="master-selector-segment">Here are</span>');
             $(this.el).append('<span class="master-selector-segment"  id="theme-selector"></span>');
             $(this.el).append('<span class="master-selector-segment">happenings near</span>');
             $(this.el).append('<span class="master-selector-segment"  id="location-selector"></span>');
@@ -373,7 +379,7 @@ HAPPENING.views = {
                         processedData.push(processedSingle);
                     });
                     processedData.unshift({
-                        "label": "Pretty Much All",
+                        "label": "All Kinds of",
                         "id": undefined
                     });
                     return processedData;
@@ -439,7 +445,7 @@ HAPPENING.views = {
             var themeSearchUi = {};
             themeSearchUi.item = {
                 id: undefined,
-                label: 'Pretty Much All'
+                label: 'All Kinds of'
             };
             // trigger selectFunction for inputs, using appropriate ui objects 
             this.themeSearchView.options.selectFunction(dummyEvent, themeSearchUi);
@@ -482,12 +488,17 @@ HAPPENING.views = {
         },
         render: function() {
             var self = this;
+            // make sure the target el is invisible before putting anything in it
+            $(this.el).addClass('submission-view-modal');
+            $(this.el).addClass('invisible');
             // get the list of parameters to be posted by the form from the newly created view object
             var postParameters = this.options.postParameters;
             // clear el
             $(this.el).empty();
-            // add html for the form and the submit button
-            $(this.el).append("<div>" + this.options.label + "<form></form></div>");
+            // add html for the form
+            $(this.el).append("<span class='submission-view-header'>" + this.options.header + "</span>");
+            $(this.el).append("<span class='submission-view-description'>" + this.options.description + "</span>");
+            $(this.el).append("<form></form>");
             // functions to create an input based on the type of that input's object
             var inputConstructionFunctions = {
                 date: function(postParameter) {
@@ -613,7 +624,7 @@ HAPPENING.views = {
                 }
             };
             // append submit button to form
-            $(this.el).find("form").append("<div><input type='submit' value='Submit " + this.options.resourceName + "'></input></div>");
+            $(this.el).find("form").append("<div><input type='submit' value='" + this.options.submitText + "'></input></div>");
             // create the event that makes a post request upon submitting the form
             $(this.el).find("form").on("submit", function(event) {
                 // stop the automatic page reload upon form submission
@@ -654,7 +665,9 @@ HAPPENING.views = {
                         postRequest += '=';
                         postRequest += parameterValue;
                         postRequest += "&";
-                    });                
+                    });
+                    console.log('httpMethod: ' + self.options.httpMethod);
+                    console.log(postRequest);     
                     var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, self.options.httpMethod);
                     self.options.submitFunction();
                     HAPPENING.applicationSpace.applicationView.modalUnderlayView.hideSubmissionViews();
@@ -663,8 +676,6 @@ HAPPENING.views = {
                     alert(e.name + ': ' + e.message)
                 };
             });
-            $(this.el).addClass('submission-view-modal');
-            $(this.el).addClass('invisible');
         }
     }),
     HappeningsView: Backbone.View.extend({
@@ -692,9 +703,15 @@ HAPPENING.views = {
             };
         },
         addOne: function(model){
+            var happeningElement = "<div class='happening-view' happening-id='";
+            happeningElement +=  model.get('_id');
+            happeningElement += "'>";
+            happeningElement += '</div>';
+            $(this.el).append(happeningElement);
+            var happeningEl = '[happening-id="' + model.get('_id') + '"]';
             var view = new HAPPENING.views.HappeningView({
                 model: model,
-                el: this.el
+                el: happeningEl
             });
         },
         addAll: function() {
@@ -716,7 +733,7 @@ HAPPENING.views = {
                 return dateObject.toDateString();
             };
             var happeningHTMLTemplate = '';
-            happeningHTMLTemplate += "<div class='happening-view' happening-id='" + this.model.get('_id') + "'>";
+            
             happeningHTMLTemplate += '<div class="master-location-view">';
             happeningHTMLTemplate += '<div class="happening-name"><a href="<%=websiteUrl%>"><%=name%></a>'
             happeningHTMLTemplate += '</div>';
@@ -725,14 +742,15 @@ HAPPENING.views = {
             happeningHTMLTemplate += '<div class="happening-distance">(<%=distanceFromUserLocation%>)';
             happeningHTMLTemplate += '</div>';
             happeningHTMLTemplate += '</div>';
-            happeningHTMLTemplate += '<div class="master-date-view">';
+            happeningHTMLTemplate += '<div class="master-date-and-edit-view">';
+            happeningHTMLTemplate += '<div class="master-date-view visible">';
             happeningHTMLTemplate += '<span class="happening-date"><%=beginDate%></span>';
             happeningHTMLTemplate += '<span class="happening-to">to</span>';
             happeningHTMLTemplate += '<span class="happening-date"><%=endDate%></span>';
             happeningHTMLTemplate += '</div>';
-            happeningHTMLTemplate += '<div class="select-edit-happening-view">';
+            happeningHTMLTemplate += '<div class="select-edit-happening-view invisible">';
             happeningHTMLTemplate += "</div>";
-            happeningHTMLTemplate += "</div>";
+            happeningHTMLTemplate += '</div>';
             var happeningObject = this.model;
             var happeningData = {
                 "name": happeningObject.get("name"),
@@ -756,21 +774,26 @@ HAPPENING.views = {
                 happeningModel: self.model,
                 targetEl: '#happening-edit-container'
             });
-        }
-        // TODO: add fadein and fadeout for edit button
-        /*
-        ,
+        },
+        // TODO: figure out why each of these events is firing twice and stop it
         events: {
-            mouseover: 'revealSelectEditHappeningView',
-            mouseout: 'hideSelectEditHappeningView'
+            mouseenter: 'revealSelectEditHappeningView',
+            mouseleave: 'hideSelectEditHappeningView'
         },
         revealSelectEditHappeningView: function() {
-            console.log('in');
+            var selectorBase = '[happening-id="' + this.model.get('_id') + '"]';
+            $(selectorBase + ' .master-date-view').removeClass('visible');
+            $(selectorBase + ' .master-date-view').addClass('invisible');
+            $(selectorBase + ' .select-edit-happening-view').removeClass('invisible');
+            $(selectorBase + ' .select-edit-happening-view').addClass('visible');
         },
         hideSelectEditHappeningView: function() {
-            console.log('out');
+            var selectorBase = '[happening-id="' + this.model.get('_id') + '"]';
+            $(selectorBase + ' .select-edit-happening-view').removeClass('visible');
+            $(selectorBase + ' .select-edit-happening-view').addClass('invisible');
+            $(selectorBase + ' .master-date-view').removeClass('invisible');
+            $(selectorBase + ' .master-date-view').addClass('visible');
         }
-        */
     }),
     ComparatorSelectorView: Backbone.View.extend({
         selectComparator: function(type, target) {
@@ -842,7 +865,7 @@ HAPPENING.views = {
             var beginDate = happeningModel.get('dates').beginDate.toJSON().split('T')[0];
             var endDate = happeningModel.get('dates').endDate.toJSON().split('T')[0];
             var websiteUrl = happeningModel.get('websiteUrl');
-            // TODO: need to get theme name somehow -- all that currently comes back is theme id
+            var themeName = happeningModel.get('themes')[0].name;
             var cityName = happeningModel.get('location').cityName;
             // populate input fields with values
             targetSelector.find('#name input').val(name);
@@ -850,20 +873,25 @@ HAPPENING.views = {
             targetSelector.find('#enddate input').val(endDate);
             targetSelector.find('#cityid input').val(cityName);
             targetSelector.find('#websiteurl input').val(websiteUrl);
+            targetSelector.find('#themeid input').val(themeName);
             // get values to store as underlying objects in submission view
             var locationObject = happeningModel.get('location');
-            var themeId = happeningModel.get('themes')[0];
+            var themeObject = happeningModel.get('themes')[0];
             // add underlying objects to submission view
-            // TODO: populate the theme object somehow
             // populate the location object
             targetAppPath.location = new HAPPENING.models.Location({
-                "latitude": locationObject.latitude,
-                "longitude": locationObject.longitude,
-                'address' : {
-                    "country": locationObject.countryCode,
-                    "city": locationObject.cityName,
-                    "cityId": locationObject.cityId
+                latitude: locationObject.latitude,
+                longitude: locationObject.longitude,
+                address : {
+                    country: locationObject.countryCode,
+                    city: locationObject.cityName,
+                    cityId: locationObject.cityId
                 }
+            });
+            // populate the theme object
+            targetAppPath.theme = new HAPPENING.models.Theme({
+                name: themeObject.name,
+                _id: themeObject._id
             });
         }
     }),
