@@ -102,7 +102,7 @@ HAPPENING.utils = {
 };
 
 HAPPENING.settings = {
-    baseUrl: "http://localhost:3000"
+    baseUrl: 'http://' + window.location.hostname + ':3000'
 };
 
 HAPPENING.models = {
