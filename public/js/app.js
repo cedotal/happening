@@ -725,7 +725,7 @@ HAPPENING.views = {
             var happeningHTMLTemplate = '';
             
             happeningHTMLTemplate += '<div class="master-location-view">';
-            happeningHTMLTemplate += '<div class="happening-name"><a href="<%=websiteUrl%>"><%=name%></a>'
+            happeningHTMLTemplate += '<div class="happening-name"><a href="<%=websiteUrl%>" target="_blank"><%=name%></a>'
             happeningHTMLTemplate += '</div>';
             happeningHTMLTemplate += '<div class="happening-city"><%=city%>'
             happeningHTMLTemplate += '</div>';
