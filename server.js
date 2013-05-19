@@ -5,11 +5,9 @@ var app = express();
 var fs = require('fs');
 
 var indexRoute = function(req, res) {
-    console.log('indexRoute running');
     fs.readFile('public/index.html', 'utf8', function(err, data) {
         req.path = '/';
         res.set('Content-Type', 'text/html');
-        console.log(data)
         res.send(data);
     });
 };
