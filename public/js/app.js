@@ -405,16 +405,6 @@ HAPPENING.views = {
                         processedSingle.country = rawSingle.countryCode;
                         processedData.push(processedSingle);
                     });
-                    // if the user types in a string that matches no cities, we offer them New York as the only option
-                    if (processedData.length === 0) {
-                        processedData.unshift({
-                            label: "New York City",
-                            country: 'US',
-                            latitude: 40.71427,
-                            longitude: -74.00597,
-                            value: 'New York City'
-                        });
-                    };
                     return processedData;
                 },
                 selectFunction: function(event, ui) {
