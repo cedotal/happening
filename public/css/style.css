@@ -85,7 +85,7 @@ input:focus {
 }
 
 .submission-view-modal {
-    position: absolute;
+    position: fixed;
     top: 100px;
     left: 250px;
     width: 850px;
