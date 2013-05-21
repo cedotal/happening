@@ -490,10 +490,20 @@ HAPPENING.views = {
             // functions to create an input based on the type of that input's object
             var inputConstructionFunctions = {
                 date: function(postParameter) {
+                    self.currentFocusedDate = new Date();
                     $(self.el).find("#" + postParameter.id).append(postParameter.label + "<input type='text' name='" + postParameter.id + "'></input>");
-                    $(self.el).find("#" + postParameter.id + " input").datepicker({
-                        dateFormat: "yy-mm-dd"
-                    });
+                    var datepickerOptions = {
+                        dateFormat: 'yy-mm-dd',
+                        constrainInput: true,
+                        showAnim: 'slideDown'
+                    };
+                    $(self.el).find("#" + postParameter.id + " input").datepicker(datepickerOptions);
+                    // if the user picks a begindate, we autofocus them on that date when they open the enddate input 
+                    if (postParameter.id === 'enddate') {
+                        $(self.el).find("#begindate input").datepicker('option', 'onSelect', function(date) {
+                            $(self.el).find("#enddate input").datepicker('option', 'defaultDate', new Date(date));
+                        });
+                    };
                 },
                 theme: function(postParameter) {
                     self.themeInputView = new HAPPENING.views.SearchView({
