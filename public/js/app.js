@@ -99,6 +99,27 @@ HAPPENING.utils = {
             };
         };
         return locationObject;
+    },
+    // a function for turning raw location objects from the server into something that can be displayed by jquery UI autocomplete
+    locationProcessDataFunction: function(rawData) {
+        var processedData = [];
+        rawData.forEach(function(rawSingle) {
+            processedSingle = {};
+            processedSingle.label = rawSingle.name + ', ';
+            if (rawSingle.countryCode === 'US') {
+                processedSingle.label += rawSingle.admin1Code;
+            }
+            else {
+                processedSingle.label += rawSingle.countryCode;
+            };
+            processedSingle.id = rawSingle["_id"];
+            processedSingle.latitude = rawSingle.latitude;
+            processedSingle.longitude = rawSingle.longitude;
+            processedSingle.country = rawSingle.countryCode;
+            processedSingle.admin1Code = rawSingle.admin1Code;
+            processedData.push(processedSingle);
+        });
+        return processedData;
     }
 };
 
@@ -390,21 +411,7 @@ HAPPENING.views = {
                 el: "#location-selector",
                 addFormElement: true,
                 resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
-                processData: function(rawData) {
-                    // TODO: this function doesn't need to be defined twice
-                    console.log('391 is the one being used');
-                    var processedData = [];
-                    rawData.forEach(function(rawSingle) {
-                        processedSingle = {};
-                           processedSingle.label = rawSingle.name;
-                        processedSingle.id = rawSingle["_id"];
-                        processedSingle.latitude = rawSingle.latitude;
-                        processedSingle.longitude = rawSingle.longitude;
-                        processedSingle.country = rawSingle.countryCode;
-                        processedData.push(processedSingle);
-                    });
-                    return processedData;
-                },
+                processData: HAPPENING.utils.locationProcessDataFunction,
                 selectFunction: function(event, ui) {
                     HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
                         "latitude": ui.item.latitude, "longitude": ui.item.longitude,
@@ -537,19 +544,7 @@ HAPPENING.views = {
                         },
                         description: postParameter.label,
                         resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
-                        processData: function(rawData) {
-                            var processedData = [];
-                            rawData.forEach(function(rawSingle) {
-                                processedSingle = {};
-                                processedSingle.label = rawSingle.name;
-                                processedSingle.cityId = rawSingle.geonameID;
-                                processedSingle.latitude = rawSingle.latitude;
-                                processedSingle.longitude = rawSingle.longitude;
-                                processedSingle.country = rawSingle.countryCode;
-                                processedData.push(processedSingle);
-                            });
-                            return processedData;
-                        },
+                        processData: HAPPENING.utils.locationProcessDataFunction,
                         selectFunction: function(event, ui) {
                             self.location = new HAPPENING.models.Location({
                                 "latitude": ui.item.latitude,

@@ -176,3 +176,7 @@ input:focus {
     width: 180px;
     left: 65px;
 }
+
+.ui-autocomplete {
+    position: fixed;
+}
