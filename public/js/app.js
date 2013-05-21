@@ -29,6 +29,7 @@ HAPPENING.utils = {
     },
     // accepts a url (and a method, which defaults to "GET" if not passed) and returns result of an API call
     makeHttpRequest: function(url, method) {
+        console.log(url);
         var result;
         $.ajax({
             async: false,
@@ -218,7 +219,7 @@ HAPPENING.views = {
             });
             this.themeSubmissionView = new HAPPENING.views.SubmissionView({
                 el: "#theme-submission-container",
-                postUrl: "/themes",
+                resourceName: 'theme',
                 postParameters: [
                     {
                         label: 'What\'s the name of this theme?',
@@ -226,7 +227,6 @@ HAPPENING.views = {
                         type: "string"
                     }
                 ],
-                resourceName: "theme",
                 httpMethod: 'POST',
                 header: "Add Theme",
                 description: 'Are we missing a theme? Add it here.',
@@ -237,7 +237,7 @@ HAPPENING.views = {
             });
             this.happeningSubmissionView = new HAPPENING.views.SubmissionView({
                 el: "#happening-submission-container",
-                postUrl: "/happenings",
+                resourceName: 'happening',
                 postParameters: [
                     {
                         label: 'What\'s this happening called?',
@@ -270,7 +270,6 @@ HAPPENING.views = {
                         type: "url" 
                     }
                 ],
-                resourceName: "happening",
                 httpMethod: 'POST',
                 header: "Add a New Happening",
                 description: 'Are we missing a particular happening? Add it here.',
@@ -281,7 +280,7 @@ HAPPENING.views = {
             });
             this.happeningEditView = new HAPPENING.views.SubmissionView({
                 el: "#happening-edit-container",
-                postUrl: "/happenings",
+                resourceName: 'happening',
                 postParameters: [
                     {
                         label: 'What\'s this happening called?',
@@ -314,7 +313,6 @@ HAPPENING.views = {
                         type: "url" 
                     }
                 ],
-                resourceName: "happening",
                 httpMethod: 'PUT',
                 header: 'Edit Happening',
                 description: 'Is something about this happening inaccurate? Fix it here.',
@@ -604,7 +602,7 @@ HAPPENING.views = {
             // functions for fetching the parameter value when assembling a request url
             var inputParameterGetters = {
                 themeid: function(postParameter) {
-                    return self.theme.id;
+                    return self.theme.get('_id');
                 },
                 cityid: function(postParameter) {
                     return self.location.get("address").cityId;
@@ -641,8 +639,13 @@ HAPPENING.views = {
                             };
                         }; 
                     });
-                    console.log(self.location);
-                    var postRequest = HAPPENING.settings.baseUrl + self.options.postUrl + "?";
+                    var postRequest = HAPPENING.settings.baseUrl + '/' + self.options.resourceName + 's';
+                    if (self.options.resourceName === 'happening' && self.options.httpMethod === 'PUT') {
+                        console.log(self.model);
+                        postRequest += '/';
+                        postRequest += self.model.get('_id');
+                    };
+                    postRequest += '?';
                     postParameters.forEach(function(postParameter) {
                         var parameterValue;
                         if (inputParameterGetters[postParameter.id] !== undefined) {
@@ -656,8 +659,7 @@ HAPPENING.views = {
                         postRequest += parameterValue;
                         postRequest += "&";
                     });
-                    console.log('httpMethod: ' + self.options.httpMethod);
-                    console.log(postRequest);     
+                    console.log('self.options.httpMethod' + self.options.httpMethod);
                     var postResponse = HAPPENING.utils.makeHttpRequest(postRequest, self.options.httpMethod);
                     self.options.submitFunction();
                     HAPPENING.applicationSpace.applicationView.modalUnderlayView.hideSubmissionViews();
@@ -761,7 +763,7 @@ HAPPENING.views = {
                     return '[happening-id="' + self.model.get('_id') + '"] .select-edit-happening-view';
                 },
                 description: 'Edit this Happening',
-                happeningModel: self.model,
+                model: self.model,
                 targetEl: '#happening-edit-container'
             });
         },
@@ -812,12 +814,12 @@ HAPPENING.views = {
             // $(this.el).append('<span id="link-copier"></span>');
             this.submitThemeButtonView = new HAPPENING.views.SubmissionViewSelectorView({
                 el: '#submit-theme-button',
-                description: 'Submit Theme',
+                description: 'Add Theme',
                 targetEl: '#theme-submission-container'
             });
             this.submitHappeningButtonView = new HAPPENING.views.SubmissionViewSelectorView({
                 el: '#submit-happening-button',
-                description: 'Submit Happening',
+                description: 'Add Happening',
                 targetEl: '#happening-submission-container'
             });
             /* this.linkCopierView = new HAPPENING.views.LinkCopierView({
@@ -837,7 +839,7 @@ HAPPENING.views = {
             click: 'revealTargetEl'
         },
         revealTargetEl: function() {
-            if (this.options.happeningModel !== undefined) {
+            if (this.model !== undefined) {
                 this.modifyTargetHappeningSubmissionEl();
             };
             $('.submission-view-modal').removeClass('visible');
@@ -849,7 +851,7 @@ HAPPENING.views = {
         modifyTargetHappeningSubmissionEl: function() {
             var targetSelector = $(this.options.targetEl);
             var targetAppPath = HAPPENING.applicationSpace.applicationView.happeningEditView;
-            var happeningModel = this.options.happeningModel;
+            var happeningModel = this.model;
             // get values to populate input fields with
             var name = happeningModel.get('name');
             var beginDate = happeningModel.get('dates').beginDate.toJSON().split('T')[0];
@@ -883,6 +885,9 @@ HAPPENING.views = {
                 name: themeObject.name,
                 _id: themeObject._id
             });
+            // put the happening's full model into the view so we can get the id
+            // TODO: keeping all of these separate things in the view is redundant -- we should really just keep the happening model and modify it on the fly, since it has all the relevant info in it
+            targetAppPath.model = happeningModel;
         }
     }),
     ModalUnderlayView: Backbone.View.extend({
