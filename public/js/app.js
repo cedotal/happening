@@ -104,6 +104,8 @@ HAPPENING.utils = {
     locationProcessDataFunction: function(rawData) {
         var processedData = [];
         rawData.forEach(function(rawSingle) {
+            console.log('rawSingle');
+            console.log(rawSingle);
             processedSingle = {};
             processedSingle.label = rawSingle.name + ', ';
             if (rawSingle.countryCode === 'US') {
@@ -112,12 +114,14 @@ HAPPENING.utils = {
             else {
                 processedSingle.label += rawSingle.countryCode;
             };
-            processedSingle.id = rawSingle["_id"];
-            processedSingle.latitude = rawSingle.latitude;
-            processedSingle.longitude = rawSingle.longitude;
+            processedSingle.id = rawSingle.geonameID;
+            processedSingle.latitude = rawSingle.loc.coordinates[1];
+            processedSingle.longitude = rawSingle.loc.coordinates[0];
             processedSingle.country = rawSingle.countryCode;
             processedSingle.admin1Code = rawSingle.admin1Code;
             processedData.push(processedSingle);
+            console.log('processedSingle');
+            console.log(processedSingle);
         });
         return processedData;
     }
@@ -281,12 +285,12 @@ HAPPENING.views = {
                         type: "date"
                     },
                     {
-                        label: 'What\'s it all about?',
+                        label: 'What is it all about?',
                         id: "themeid",
                         type: "theme" 
                     },
                     {
-                        label: 'What\s the website?',
+                        label: 'What is the website?',
                         id: "websiteurl",
                         type: "url" 
                     }
@@ -471,7 +475,8 @@ HAPPENING.views = {
                     response(processedData);
                 },
                 autoFocus: true,
-                select: self.options.selectFunction
+                select: self.options.selectFunction,
+                minLength: 1
             });
         }
     }),
@@ -498,7 +503,7 @@ HAPPENING.views = {
             var inputConstructionFunctions = {
                 date: function(postParameter) {
                     self.currentFocusedDate = new Date();
-                    $(self.el).find("#" + postParameter.id).append(postParameter.label + "<input type='text' name='" + postParameter.id + "'></input>");
+                    $(self.el).find("#" + postParameter.id).append('<span class="post-parameter-label">' + postParameter.label + "</span><input type='text' name='" + postParameter.id + "'></input>");
                     var datepickerOptions = {
                         dateFormat: 'yy-mm-dd',
                         constrainInput: true,
@@ -517,7 +522,7 @@ HAPPENING.views = {
                         el: function() {
                             return "#" + $(self.el).attr('id') + " #" + postParameter.id;
                         },
-                        description: postParameter.label,
+                        description: ('<span class="post-parameter-label">' + postParameter.label + '</span>'),
                         resourceUrl: HAPPENING.settings.baseUrl + '/themes/search',
                         processData: function(rawData) {
                             var processedData = [];
@@ -542,24 +547,25 @@ HAPPENING.views = {
                         el: function() {
                             return "#" + $(self.el).attr('id') + " #" + postParameter.id;
                         },
-                        description: postParameter.label,
+                        description: ('<span class="post-parameter-label">' + postParameter.label + "</span>"),
                         resourceUrl: HAPPENING.settings.baseUrl + '/cities/search',
                         processData: HAPPENING.utils.locationProcessDataFunction,
                         selectFunction: function(event, ui) {
+                            console.log(ui);
                             self.location = new HAPPENING.models.Location({
                                 "latitude": ui.item.latitude,
                                 "longitude": ui.item.longitude,
                                 'address' : {
                                     "country": ui.item.country,
                                     "city": ui.item.label,
-                                    "cityId": ui.item.cityId
+                                    "cityId": ui.item.id
                                 }
                             });
                         }
                     });
                 },
                 _misc: function(postParameter) {
-                    $(self.el).find("#" + postParameter.id).append(postParameter.label + "<input type='text' name='" + postParameter.id + "'></input>");
+                    $(self.el).find("#" + postParameter.id).append('<span class="post-parameter-label">' + postParameter.label + "</span><input type='text' name='" + postParameter.id + "'></input>");
                 }
             };
             // client-side validity checks for the various types of url parameters; corresponds generally to the checks in the server-side application
@@ -596,7 +602,7 @@ HAPPENING.views = {
                 }
             };
             postParameters.forEach( function(postParameter) {
-                $(self.el).find("form").append("<div id='" + postParameter.id + "'></div>");
+                $(self.el).find("form").append("<div class='submission-view-input' id='" + postParameter.id + "'></div>");
                 if (inputConstructionFunctions[postParameter.type] !== undefined) {
                     inputConstructionFunctions[postParameter.type](postParameter);
                 }
@@ -607,9 +613,10 @@ HAPPENING.views = {
             // functions for fetching the parameter value when assembling a request url
             var inputParameterGetters = {
                 themeid: function(postParameter) {
-                    return self.theme.get('_id');
+                    return self.theme.get('id');
                 },
                 cityid: function(postParameter) {
+                    console.log(self.location);
                     return self.location.get("address").cityId;
                 },
                 _misc: function(postParameter) {
@@ -652,6 +659,7 @@ HAPPENING.views = {
                     };
                     postRequest += '?';
                     postParameters.forEach(function(postParameter) {
+                        console.log(postParameter.id);
                         var parameterValue;
                         if (inputParameterGetters[postParameter.id] !== undefined) {
                             parameterValue = inputParameterGetters[postParameter.id](postParameter);
@@ -859,6 +867,7 @@ HAPPENING.views = {
             var happeningModel = this.model;
             // get values to populate input fields with
             var name = happeningModel.get('name');
+            console.log(name);
             var beginDate = happeningModel.get('dates').beginDate.toJSON().split('T')[0];
             var endDate = happeningModel.get('dates').endDate.toJSON().split('T')[0];
             var websiteUrl = happeningModel.get('websiteUrl');
