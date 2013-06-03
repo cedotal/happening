@@ -963,3 +963,40 @@ HAPPENING.applicationSpace.user = new HAPPENING.models.User;
 
 // create the other application views (program input)
 HAPPENING.applicationSpace.applicationView.initializeOtherThanHappeningsView();
+
+// detect duplicate values in an array
+function detectDuplicates (array) {
+    var newArray = _.clone(array);
+    newArray.sort();
+    var duplicatePresence = false;
+    for (var i = 0; i < newArray.length; i++) {
+        var currentTarget = newArray.shift();
+        if (newArray.indexOf(currentTarget) !== -1) {
+            duplicatePresence = true;
+        };
+    };
+    return duplicatePresence;
+};
+
+// TEST: function to walk the window namespace
+var findValueInNamespace = function(value, namespaceArray) {
+    var findCounter = 0;
+    var namespace = window;
+    // console.log(namespaceArray.join('.'));
+    for (var i = 0, len = namespaceArray.length; i < len; ++i) {
+        namespace = namespace[namespaceArray[i]];
+    };
+    for (attr in namespace) {
+        // if any two segments of the namespace path are identical, assume we're on an infinite recursion loop and do nothing
+        // TODO: this doesn't guard against the possibility that there are identical segments on a non-infinite recursion path
+        var newNamespaceArray = _.clone(namespaceArray);
+        newNamespaceArray.push(attr);
+        // else if (typeof namespace[attr] === 'object' && ['_events', 'constructor', '__proto__', 'init', 'prototype', 'jquery', '$el', 'el'].indexOf(attr) === -1){
+        if (typeof namespace[attr] === 'object' && detectDuplicates(newNamespaceArray) === false) {
+            findValueInNamespace(value, newNamespaceArray);
+        }
+        else if (namespace[attr] === value) {
+            console.log('FOUND VALUE AT: ' + newNamespaceArray.join('.'));
+        };
+    };
+};
