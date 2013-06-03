@@ -8,8 +8,11 @@ a {
 }
 
 input {
-    background-color: #8F8F8F;
     border-style: none;
+}
+
+input:not([type="submit"]) {
+    background-color: #8F8F8F;
     border-radius: 10px;
 }
 
@@ -68,11 +71,12 @@ input:focus {
     overflow: hidden;
 }
 
-.submission-view-selector, .comparator-selector-segment {
+.submission-view-selector, .comparator-selector-segment, input[type="submit"] {
     cursor: pointer;
     border-radius: 5px;
     padding: 12px;
-    background-color: #E20012
+    background-color: #E20012;
+    font-size: 20px;
 }
 
 #toolbar .submission-view-selector {
@@ -103,12 +107,21 @@ input:focus {
 .submission-view-modal {
     position: fixed;
     top: 100px;
-    left: 250px;
-    width: 850px;
+    left: 425px;
+    width: 500px;
     border-style: solid;
     border-width: 1.5px;
     border-radius: 1.5px;
-    padding: 10px
+    padding: 20px
+}
+
+.submission-view-modal input:not([type="submit"]) {
+    padding: 3.5px 10px;
+}
+
+.submission-view-modal input[type="submit"] {
+    display: block;
+    margin: 8px auto 0px auto;
 }
 
 .submission-view-header, .submission-view-description {
@@ -195,3 +208,25 @@ input:focus {
 .ui-autocomplete {
     position: fixed;
 }
+
+.post-parameter-label {
+    width: 310px;
+    overflow: ellipsis;
+    display: block;
+    float: left;
+}
+
+.submission-view-input {
+    margin: 8px 0px;
+}
+
+.submission-view-header {
+    font-weight: bold;
+    font-size: 26px;
+    margin: 2px 0px 8px 0px;
+}
+
+.submission-view-description {
+    margin: 14px 0px 22px 0px;
+}
+
