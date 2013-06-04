@@ -693,7 +693,6 @@ HAPPENING.views = {
             this.listenTo(this.collection, 'reset', this.render);
             this.listenTo(this.collection, 'sort', this.render);
         },
-        // TODO: happenings should really be their own views
         render: function() {
             console.log('rendering happeningsView');
             var self = this;
@@ -897,7 +896,7 @@ HAPPENING.views = {
             // populate the theme object
             targetAppPath.theme = new HAPPENING.models.Theme({
                 name: themeObject.name,
-                _id: themeObject._id
+                id: themeObject._id
             });
             // put the happening's full model into the view so we can get the id
             // TODO: keeping all of these separate things in the view is redundant -- we should really just keep the happening model and modify it on the fly, since it has all the relevant info in it
