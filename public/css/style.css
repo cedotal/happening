@@ -69,6 +69,7 @@ input:focus {
 
 #toolbar {
     overflow: hidden;
+    margin: 0px 0px 10px 0px;
 }
 
 .submission-view-selector, .comparator-selector-segment, input[type="submit"] {

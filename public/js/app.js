@@ -328,12 +328,12 @@ HAPPENING.views = {
                         type: "date"
                     },
                     {
-                        label: 'What\'s it all about?',
+                        label: 'What is it all about?',
                         id: "themeid",
                         type: "theme" 
                     },
                     {
-                        label: 'What\s the website?',
+                        label: 'What is the website?',
                         id: "websiteurl",
                         type: "url" 
                     }
