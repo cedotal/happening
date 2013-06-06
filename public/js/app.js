@@ -360,7 +360,7 @@ HAPPENING.views = {
         },
         render: function() {
             $(this.el).empty();
-            $(this.el).append('<div class="comparator-selector-label">Sort By:</div><div id="distance-comparator-selector"></div><div id="date-comparator-selector"></div>');
+            $(this.el).append('<div class="comparator-selector-label">Sort By:</div><div id="distance-comparator-selector" class="comparator-selected"></div><div id="date-comparator-selector"></div>');
             this.distanceComparatorSelectorView = new HAPPENING.views.ComparatorSelectorView({
                 el: '#distance-comparator-selector',
                 label: 'Distance',
@@ -485,6 +485,7 @@ HAPPENING.views = {
         // view renders when created
         initialize: function() {
             this.render();
+            this.themes = [];
         },
         render: function() {
             var self = this;
@@ -535,10 +536,11 @@ HAPPENING.views = {
                             return processedData;
                         },
                         selectFunction: function(event, ui) {
-                            self.theme = new HAPPENING.models.Theme({
+                            var newTheme = new HAPPENING.models.Theme({
                                 id: ui.item.id,
                                 name: ui.item.label
                             });
+                            self.themes.push(newTheme);
                         }
                     });
                 },
@@ -591,7 +593,16 @@ HAPPENING.views = {
                 },
                 mongoObjectId: function(parameter) {
                     var objectIdRegExp = new RegExp("^[0-9a-fA-F]{24}$");
-                    return objectIdRegExp.test(parameter);
+                    var validityArray = parameterArray.map(function(singleParameter) {
+                        return objectIdRegExp.test(singleParameter)
+                    });
+                    if (validityArray.indexOf(false) === -1) {
+                        var validity = true;
+                    }
+                    else {
+                        var validity = false;
+                    };
+                    return validity;
                 },
                 url: function(parameter) {
                     var urlValidity = false;
@@ -613,7 +624,11 @@ HAPPENING.views = {
             // functions for fetching the parameter value when assembling a request url
             var inputParameterGetters = {
                 themeid: function(postParameter) {
-                    return self.theme.get('id');
+                    var themeArray = self.themes;
+                    var themeIdArray = themeArray.map(function(theme){
+                        return theme.get('id');
+                    });
+                    return themeIdArray.join(',');
                 },
                 cityid: function(postParameter) {
                     console.log(self.location);
@@ -802,6 +817,8 @@ HAPPENING.views = {
     ComparatorSelectorView: Backbone.View.extend({
         selectComparator: function(type, target) {
             HAPPENING.applicationSpace.applicationView.happeningsView.collection.changeComparator(this.options.comparatorConstructor, this.options.target());
+            $('.comparator-selector-segment').removeClass('comparator-selected');
+            $(this.el).addClass('comparator-selected');
         },
         initialize: function() {
             this.render();

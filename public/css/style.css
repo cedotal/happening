@@ -88,21 +88,35 @@ input:focus {
 
 #master-comparator-selector-view {
     overflow: hidden;
-    margin: 0px auto 20px auto;
-    padding: 0px 0px 10px 0px;
-    width: 280px;
+    margin: 0px auto 30px auto;
+    padding: 0px 0px 25px 0px;
+    width: 310px;
     border-width: 0px 0px 2.5px 0px;
     border-style: solid;
 }
 
 .comparator-selector-label {
     padding: 9px 5px 9px 0px;
+    margin: 6px 0px 0px 10px;
 }
 
 .comparator-selector-label, .comparator-selector-segment {
-    cursor: pointer;
-    margin: 0px 0px 12px 10px;
     float: left;
+}
+
+.comparator-selector-segment {
+    cursor: pointer;
+}
+
+.comparator-selector-segment.comparator-selected {
+    margin: 0px 8px;
+    border-style: solid;
+    border-width: 4px;
+    border-color: white;
+}
+
+.comparator-selector-segment:not(.comparator-selected) {
+    margin: 4px 12px;
 }
 
 .submission-view-modal {
