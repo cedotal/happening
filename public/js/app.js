@@ -285,14 +285,14 @@ HAPPENING.views = {
                         type: "date"
                     },
                     {
-                        label: 'What is it all about?',
-                        id: "themeid",
-                        type: "theme" 
-                    },
-                    {
                         label: 'What is the website?',
                         id: "websiteurl",
                         type: "url" 
+                    },
+                    {
+                        label: 'What is it all about?',
+                        id: "themeid",
+                        type: "theme" 
                     }
                 ],
                 httpMethod: 'POST',
@@ -328,14 +328,14 @@ HAPPENING.views = {
                         type: "date"
                     },
                     {
-                        label: 'What is it all about?',
-                        id: "themeid",
-                        type: "theme" 
-                    },
-                    {
                         label: 'What is the website?',
                         id: "websiteurl",
                         type: "url" 
+                    },
+                    {
+                        label: 'What is it all about?',
+                        id: "themeid",
+                        type: "theme" 
                     }
                 ],
                 httpMethod: 'PUT',
@@ -480,6 +480,29 @@ HAPPENING.views = {
             });
         }
     }),
+    TagView: Backbone.View.extend({
+        initialize: function() {
+            this.render();
+        },
+        render: function() {
+            var self = this;
+            $(this.el).append("<form>" + (this.options.description || "") + "<input type='text'></input></form>");
+            $(this.el).find('input').tagit({
+                autocomplete: {
+                    source: function(request, response) {
+                        var searchString = request.term;
+                        var rawData = HAPPENING.utils.makeHttpRequest(self.options.resourceUrl + '?searchstring=' + searchString);
+                        var processedData = self.options.processData(rawData);
+                        response(processedData);
+                    },
+                    select: self.options.selectFunction,
+                    minLength: 0
+                },
+                showAutocompleteOnFocus: true,
+                allowSpace: true
+            });
+        }
+    }),
     // generic view for submission forms
     SubmissionView: Backbone.View.extend({
         // view renders when created
@@ -519,7 +542,7 @@ HAPPENING.views = {
                     };
                 },
                 theme: function(postParameter) {
-                    self.themeInputView = new HAPPENING.views.SearchView({
+                    self.themeInputView = new HAPPENING.views.TagView({
                         el: function() {
                             return "#" + $(self.el).attr('id') + " #" + postParameter.id;
                         },
