@@ -216,9 +216,34 @@ HAPPENING.collections = {
                 else {
                     var currentlyViewedThemeId = undefined;
                 };
+                var parameterMap = [];
                 if (currentlyViewedThemeId !== undefined) {
-                    requestUrl += '?themeid=';
-                    requestUrl += currentlyViewedThemeId;
+                    parameterMap.push({
+                        key: 'themeid',
+                        value: currentlyViewedThemeId
+                    });
+                };
+                var currentlyViewedLocation = HAPPENING.applicationSpace.user.get('currentlyViewedLocation');
+                if (currentlyViewedLocation !== undefined) {
+                    parameterMap.push({
+                        key: 'latitude',
+                        value: currentlyViewedLocation.latitude
+                    });
+                    parameterMap.push({
+                        key: 'longitude',
+                        value: currentlyViewedLocation.longitude
+                    });
+                };
+                for (var i = 0; i < parameterMap.length; i++) {
+                    if (i === 0) {
+                        requestUrl += '?';
+                    }
+                    else {
+                        requestUrl += '&';
+                    };
+                    requestUrl += parameterMap[i].key;
+                    requestUrl += '=';
+                    requestUrl += parameterMap[i].value;
                 };
                 return requestUrl;
             };
@@ -486,8 +511,8 @@ HAPPENING.views = {
         },
         render: function() {
             var self = this;
-            $(this.el).append("<form>" + (this.options.description || "") + "<input type='text'></input></form>");
-            $(this.el).find('input').tagit({
+            $(this.el).append((this.options.description || "") + "<ul></ul>");
+            $(this.el).find('ul').tagit({
                 autocomplete: {
                     source: function(request, response) {
                         var searchString = request.term;
