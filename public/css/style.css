@@ -11,7 +11,7 @@ input {
     border-style: none;
 }
 
-input:not([type="submit"]) {
+input:not([type="submit"]), .ui-widget-content {
     background-color: #8F8F8F;
     border-radius: 10px;
 }
@@ -23,7 +23,7 @@ input:focus {
 #master-selector-container {
     margin: 0px auto 6px auto;
     padding: 10px 0px 10px 0px;
-    width: 830px;
+    width: 815px;
     overflow: hidden;
     font-size: 28px;
 }
@@ -244,4 +244,3 @@ input:focus {
 .submission-view-description {
     margin: 14px 0px 22px 0px;
 }
-
