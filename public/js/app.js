@@ -49,6 +49,17 @@ HAPPENING.utils = {
     },
     // function that uses various methods to find user location
     findCurrentUserLocation: function() {
+        // TODO: geolocation code is commented out until it can be tested in multiple locations; definitely needs to be added back in
+        locationObject = {
+            'address': {
+                'city': "New York City",
+                'country': "USA"
+            },
+            'latitude': 40.75,
+            'longitude': -73.997
+        };
+        return locationObject;
+        /*
         // initialize location object to return
         var locationObject = {
             'address': {
@@ -98,6 +109,7 @@ HAPPENING.utils = {
             };
         };
         return locationObject;
+        */
     },
     // a function for turning raw location objects from the server into something that can be displayed by jquery UI autocomplete
     locationProcessDataFunction: function(rawData) {
@@ -116,6 +128,7 @@ HAPPENING.utils = {
             processedSingle.longitude = rawSingle.loc.coordinates[0];
             processedSingle.country = rawSingle.countryCode;
             processedSingle.admin1Code = rawSingle.admin1Code;
+            processedSingle.timezone = rawSingle.timezone;
             processedData.push(processedSingle);
         });
         return processedData;
@@ -134,6 +147,7 @@ HAPPENING.models = {
         },
         initialize: function() {
             this.on("change:currentlyViewedLocation", function(model) {
+                console.log('changing cVL');
                 HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
             });
             this.on("change:currentlyViewedTag", function(model) {
@@ -175,6 +189,10 @@ HAPPENING.models = {
 
 HAPPENING.collections = {
     HappeningCollection: Backbone.Collection.extend({
+        initialize: function() {
+            this.on('sort', function() { console.log('happeningsCollection is firing a "sort" event'); });
+            this.on('reset', function() { console.log('happeningsCollection is firing a "reset" event'); });
+        },
         model: HAPPENING.models.Happening,
         // these functions are used to create comparator functions dynamically based on a target date or location
         comparatorConstructors: {
@@ -182,7 +200,8 @@ HAPPENING.collections = {
                 return happening.distanceFromLocation(location);
             },
             timeFromDate: function(happening, date) {
-                return happening.get('dates').beginDate - date;
+                var timeDistance = happening.get('dates').beginDate - date;
+                return timeDistance;
             }
         },
         // the comparator function determines sorting
@@ -194,6 +213,7 @@ HAPPENING.collections = {
             var newComparator = function(happening) {
                 return this.comparatorConstructors[type](happening, target);
             };
+            console.log('inside changeComparator function');
             this.comparator = newComparator;
             this.sort();
         }, 
@@ -379,7 +399,7 @@ HAPPENING.views = {
             this.render();
         },
         render: function() {
-            $(this.el).append('<span class="master-selector-segment">Happenings tagged</span>');
+            $(this.el).append('<span class="master-selector-segment">Events tagged</span>');
             $(this.el).append('<span class="master-selector-segment"  id="tag-selector"></span>');
             $(this.el).append('<span class="master-selector-segment">near</span>');
             $(this.el).append('<span class="master-selector-segment"  id="location-selector"></span>');
@@ -415,11 +435,13 @@ HAPPENING.views = {
                 processData: HAPPENING.utils.locationProcessDataFunction,
                 selectFunction: function(event, ui) {
                     HAPPENING.applicationSpace.user.set("currentlyViewedLocation", {
-                        "latitude": ui.item.latitude, "longitude": ui.item.longitude,
-                        'address' : {
-                            "country": ui.item.country,
-                            "city": ui.item.label
-                        }
+                        latitude: ui.item.latitude,
+                        longitude: ui.item.longitude,
+                        address : {
+                            country: ui.item.country,
+                            city: ui.item.label
+                        },
+                        timezone: ui.item.timezone
                     });
                 }
             });
@@ -571,13 +593,14 @@ HAPPENING.views = {
                         processData: HAPPENING.utils.locationProcessDataFunction,
                         selectFunction: function(event, ui) {
                             self.location = new HAPPENING.models.Location({
-                                "latitude": ui.item.latitude,
-                                "longitude": ui.item.longitude,
-                                'address' : {
-                                    "country": ui.item.country,
-                                    "city": ui.item.label,
-                                    "cityId": ui.item.id
-                                }
+                                latitude: ui.item.latitude,
+                                longitude: ui.item.longitude,
+                                address : {
+                                    country: ui.item.country,
+                                    city: ui.item.label,
+                                    cityId: ui.item.id
+                                },
+                                timezone: ui.item.timezone
                             });
                         }
                     });
@@ -638,6 +661,9 @@ HAPPENING.views = {
                 };
             });
             // functions for fetching the parameter value when assembling a request url
+            var convertWallTimeToUTCString = function(timezoneString, dateString) {
+                return WallTime.WallTimeToUTC(timezoneString, new Date(dateString)).toUTCString().split(' GMT')[0].split(', ')[1];
+            };
             var inputParameterGetters = {
                 tags: function(postParameter) {
                     var tagString = $(self.el).find('input[type="hidden"]').val();
@@ -645,6 +671,12 @@ HAPPENING.views = {
                 },
                 cityid: function(postParameter) {
                     return self.location.get("address").cityId;
+                },
+                begindate: function () {
+                    return convertWallTimeToUTCString(self.location.get('timezone'), $(self.el).find("input[name='begindate']").val());
+                },
+                enddate: function () {
+                    return convertWallTimeToUTCString(self.location.get('timezone'), $(self.el).find("input[name='enddate']").val());
                 },
                 _misc: function(postParameter) {
                     return $(self.el).find("input[name=\"" + postParameter.id + "\"]").val();
@@ -780,7 +812,7 @@ HAPPENING.views = {
             happeningHTMLTemplate += '<div class="master-date-and-edit-view">';
             happeningHTMLTemplate += '<div class="master-date-view visible">';
             happeningHTMLTemplate += '<span class="happening-date"><%=beginDate%></span>';
-            happeningHTMLTemplate += '<span class="happening-to">to</span>';
+            happeningHTMLTemplate += '<span class="happening-to">–</span>';
             happeningHTMLTemplate += '<span class="happening-date"><%=endDate%></span>';
             happeningHTMLTemplate += '</div>';
             happeningHTMLTemplate += '<div class="select-edit-happening-view invisible">';
@@ -794,10 +826,12 @@ HAPPENING.views = {
             else {
                 citySuffix += happeningObject.get("location").countryCode;
             };
+            var beginDate = happeningObject.get("dates").beginDate;
+            var endDate = happeningObject.get("dates").endDate;
             var happeningData = {
                 "name": happeningObject.get("name"),
-                "beginDate": makeDateReadable(happeningObject.get("dates").beginDate),
-                "endDate":  makeDateReadable(happeningObject.get("dates").endDate),
+                "beginDate": makeDateReadable(WallTime.UTCToWallTime(beginDate, happeningObject.get('location').timezone)),
+                "endDate":  makeDateReadable(WallTime.UTCToWallTime(endDate, happeningObject.get('location').timezone)),
                 "city": (happeningObject.get("location").cityName + ', ' + citySuffix),
                 "websiteUrl": happeningObject.get("websiteUrl")
             };
@@ -839,6 +873,7 @@ HAPPENING.views = {
     }),
     ComparatorSelectorView: Backbone.View.extend({
         selectComparator: function(type, target) {
+            console.log('selecting a new comparator');
             HAPPENING.applicationSpace.applicationView.happeningsView.collection.changeComparator(this.options.comparatorConstructor, this.options.target());
             $('.comparator-selector-segment').removeClass('comparator-selected');
             $(this.el).addClass('comparator-selected');
@@ -924,8 +959,9 @@ HAPPENING.views = {
                 address : {
                     country: locationObject.countryCode,
                     city: locationObject.cityName,
-                    cityId: locationObject.cityId
-                }
+                    cityId: locationObject.cityId,
+                },
+                timezone: locationObject.timezone
             });
             // populate the theme object
             targetSelector.find('input[type="hidden"]').attr('value', tagArray.join(','));

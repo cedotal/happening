@@ -11,19 +11,27 @@ input {
     border-style: none;
 }
 
-input:not([type="submit"]), .ui-widget-content {
-    background-color: #8F8F8F;
-    border-radius: 10px;
+input:not([type="submit"]), .tagit {
+    background: #AAAAAA !important;
+    border-radius: 4px;
 }
 
-input:focus {
+input:focus:not(.ui-widget-content) {
     color: #000000;
+    background-color: #EEEEEE !important;
+}
+
+.tagit-choice {
+    background: #AAAAAA !important;
+    border-width: 2px !important;
+    border-color: #7F7F7F !important;
+    font-weight: bold !important;
 }
 
 #master-selector-container {
     margin: 0px auto 6px auto;
     padding: 10px 0px 10px 0px;
-    width: 815px;
+    width: 740px;
     overflow: hidden;
     font-size: 28px;
 }
@@ -39,18 +47,13 @@ html, body, .submission-view-modal {
 
 #master-selector-container input {
     position: relative;
-    top: -6px;
+    top: -8px;
     width: 220px;
     font-size: 28px;
     font-weight: bold;
     text-align: center;
-    margin: 0px 8px 0px 8px;
+    margin: 2px 8px 2px 8px;
     padding: 3.5px 3px;
-}
-
-input:focus {
-    background-color: #DDDDDD;
-    outline: none;
 }
 
 #wrapper {
@@ -123,7 +126,7 @@ input:focus {
     position: fixed;
     top: 100px;
     left: 425px;
-    width: 500px;
+    width: 600px;
     border-style: solid;
     border-width: 1.5px;
     border-radius: 1.5px;
@@ -132,6 +135,7 @@ input:focus {
 
 .submission-view-modal input:not([type="submit"]) {
     padding: 3.5px 10px;
+    width: 270px;
 }
 
 .submission-view-modal input[type="submit"] {
