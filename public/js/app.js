@@ -49,7 +49,7 @@ HAPPENING.utils = {
     },
     // function that uses various methods to find user location
     findCurrentUserLocation: function() {
-        // TODO: geolocation code is commented out until it can be tested in multiple locations; definitely needs to be added back in
+        // TODO: geolocation code is commented out until it can be tested in multiple locations; needs to be added back in
         locationObject = {
             'address': {
                 'city': "New York City",
@@ -143,11 +143,11 @@ HAPPENING.models = {
     User: Backbone.Model.extend({
         defaults: {
             currentlyViewedLocation: undefined,
-            currentlyViewedTag: undefined
+            currentlyViewedTag: undefined,
+            currentlyViewedComparator: 'distance'
         },
         initialize: function() {
             this.on("change:currentlyViewedLocation", function(model) {
-                console.log('changing cVL');
                 HAPPENING.applicationSpace.applicationView.happeningsView.collection.fetch({reset: true});
             });
             this.on("change:currentlyViewedTag", function(model) {
@@ -189,10 +189,6 @@ HAPPENING.models = {
 
 HAPPENING.collections = {
     HappeningCollection: Backbone.Collection.extend({
-        initialize: function() {
-            this.on('sort', function() { console.log('happeningsCollection is firing a "sort" event'); });
-            this.on('reset', function() { console.log('happeningsCollection is firing a "reset" event'); });
-        },
         model: HAPPENING.models.Happening,
         // these functions are used to create comparator functions dynamically based on a target date or location
         comparatorConstructors: {
@@ -213,7 +209,6 @@ HAPPENING.collections = {
             var newComparator = function(happening) {
                 return this.comparatorConstructors[type](happening, target);
             };
-            console.log('inside changeComparator function');
             this.comparator = newComparator;
             this.sort();
         }, 
@@ -464,7 +459,7 @@ HAPPENING.views = {
                 id: undefined,
                 label: 'anything'
             };
-            // trigger selectFunction for inputs, using appropriate ui objects 
+            // trigger selectFunction for inputs, using appropriate ui objects
             this.tagSearchView.options.selectFunction(dummyEvent, tagSearchUi);
             this.locationSearchView.options.selectFunction(dummyEvent, locationSearchUi);
             // the jQuery mobile autocomplete module doesn't change input element values when a select event is called manually, so we do it ourselves here
@@ -757,7 +752,6 @@ HAPPENING.views = {
             this.listenTo(this.collection, 'sort', this.render);
         },
         render: function() {
-            console.log('rendering happeningsView');
             var self = this;
             $(this.el).empty();
             var htmlToInject = "";
@@ -873,7 +867,6 @@ HAPPENING.views = {
     }),
     ComparatorSelectorView: Backbone.View.extend({
         selectComparator: function(type, target) {
-            console.log('selecting a new comparator');
             HAPPENING.applicationSpace.applicationView.happeningsView.collection.changeComparator(this.options.comparatorConstructor, this.options.target());
             $('.comparator-selector-segment').removeClass('comparator-selected');
             $(this.el).addClass('comparator-selected');
@@ -987,45 +980,7 @@ HAPPENING.views = {
             $(this.el).addClass('invisible');
         }
     })
-    /*
-    ,
-    // TODO: clipboarding manipluation is diffic    ult, maybe use: https://github.com/jonrohan/ZeroClipboard
-    LinkCopierView: Backbone.View.extend({
-        initialize: function() {
-            this.render();
-        },
-        events: {
-            'click' : 'copyLink'
-        },
-        copyLink: function() {
-            var currentUrl = Backbone.history.location.href;
-            console.log(currentUrl);
-        },
-        render: function() {
-            $(this.el).empty();
-            $(this.el).append('copy link');
-        }
-    })
-    */
 };
-
-/*
-
-// TODO: handle initial urls with theme suffixes
-HAPPENING.Router = Backbone.Router.extend({
-    routes: {
-        "/": "test"
-    },
-    test: function() {
-        console.log('theme test triggered');
-    }
-});
-
-Backbone.history.start({
-    pushState: true
-});
-
-*/
 
 // namespace for the program
 HAPPENING.applicationSpace = {};
