@@ -421,7 +421,8 @@ HAPPENING.views = {
                 },
                 selectFunction: function(event, ui) {
                     HAPPENING.applicationSpace.user.set("currentlyViewedTag", ui.item.id);
-                }
+                },
+                initialMostRecentlySubmittedVal: 'anything'
             });
             this.locationSearchView = new HAPPENING.views.SearchView({
                 el: "#location-selector",
@@ -438,7 +439,8 @@ HAPPENING.views = {
                         },
                         timezone: ui.item.timezone
                     });
-                }
+                },
+                initialMostRecentlySubmittedVal: 'New York City, NY'
             });
             // a dummy event argument is required to make selectFunction work
             var dummyEvent = undefined;
@@ -462,9 +464,9 @@ HAPPENING.views = {
             // trigger selectFunction for inputs, using appropriate ui objects
             this.tagSearchView.options.selectFunction(dummyEvent, tagSearchUi);
             this.locationSearchView.options.selectFunction(dummyEvent, locationSearchUi);
-            // the jQuery mobile autocomplete module doesn't change input element values when a select event is called manually, so we do it ourselves here
-            $(this.tagSearchView.el).find('input').val(tagSearchUi.item.label);
-            $(this.locationSearchView.el).find('input').val(locationSearchUi.item.label);
+            // populate initial values underlying views on application boot into the input
+            $(this.tagSearchView.el).find('input').val(this.tagSearchView.options.initialMostRecentlySubmittedVal);
+            $(this.locationSearchView.el).find('input').val(this.locationSearchView.options.initialMostRecentlySubmittedVal);
         }
     }),
     // a generic view for autocomplete-enabled search input view
@@ -480,6 +482,26 @@ HAPPENING.views = {
             else {
                 $(this.el).append((this.options.description || "") + "<input type='text' name='" + (this.options.description || "") + "'></input>");
             };
+            this.mostRecentlySubmittedVal = this.options.initialMostRecentlySubmittedVal;
+            // prevent page reload on submission; note that the base input element's 'submit' event and the autocomplete's 'select' event are different
+            $(this.el).find('form').on('submit', function() {
+                return false;
+            });
+            // code for ensuring that the input is wiped on focus, and that the input has its most recently submitted value restored on blur
+            /*
+            $(this.el).find('form').on('submit', function() {
+                console.log('submit');
+                
+                $(self.el).find('input').val(self.mostRecentlySubmittedVal);
+            });
+            */
+            $(this.el).find('input').on('focus', function() {
+                $(self.el).find('input').val('');
+            });
+            $(this.el).find('input').on('blur', function() {
+                $(self.el).find('input').val(self.mostRecentlySubmittedVal);
+            });
+            // add autocomplete behavior to element
             $(this.el).find("input").autocomplete({
                 source: function(request, response) {
                     var searchString = request.term;
@@ -490,9 +512,8 @@ HAPPENING.views = {
                 autoFocus: true,
                 select: function(event, ui) {
                     self.options.selectFunction(event, ui);
+                    self.mostRecentlySubmittedVal = ui.item.label;
                     $(self.el).find("input").val(ui.item.label);
-                    // prevent page reload on submission
-                    return false;
                 },
                 minLength: 1
             });
