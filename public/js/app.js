@@ -488,13 +488,6 @@ HAPPENING.views = {
                 return false;
             });
             // code for ensuring that the input is wiped on focus, and that the input has its most recently submitted value restored on blur
-            /*
-            $(this.el).find('form').on('submit', function() {
-                console.log('submit');
-                
-                $(self.el).find('input').val(self.mostRecentlySubmittedVal);
-            });
-            */
             $(this.el).find('input').on('focus', function() {
                 $(self.el).find('input').val('');
             });
@@ -505,7 +498,8 @@ HAPPENING.views = {
             $(this.el).find("input").autocomplete({
                 source: function(request, response) {
                     var searchString = request.term;
-                    var rawData = HAPPENING.utils.makeHttpRequest(self.options.resourceUrl + '?searchstring=' + searchString);
+                    // the searchstring split on ',' is a hack to make sure that users searching for 'Chicago, IL' for example -- which is what the displayed autocomplete val might encourage them to do -- aren't penalized
+                    var rawData = HAPPENING.utils.makeHttpRequest(self.options.resourceUrl + '?searchstring=' + searchString.split(',')[0]);
                     var processedData = self.options.processData(rawData);
                     response(processedData);
                 },
@@ -916,9 +910,6 @@ HAPPENING.views = {
                 description: 'Add Happening',
                 targetEl: '#happening-submission-container'
             });
-            /* this.linkCopierView = new HAPPENING.views.LinkCopierView({
-                el: '#link-copier'
-            }); */
         }
     }),
     SubmissionViewSelectorView: Backbone.View.extend({
@@ -960,6 +951,9 @@ HAPPENING.views = {
             targetSelector.find('#websiteurl input').val(websiteUrl);
             // have to call createTag event to properly populate tags into tag input
             var tagArray = happeningModel.get('tags');
+            // clear all tags from the existing element
+            targetSelector.find('.tagit').tagit('removeAll');
+            // then add new ones one by one
             tagArray.forEach(function(tagString) {
                 targetSelector.find('.tagit').tagit('createTag', tagString);
             });
