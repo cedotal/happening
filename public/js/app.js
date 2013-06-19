@@ -27,6 +27,93 @@ HAPPENING.utils = {
         // return distance along Earth's surface
         return d;
     },
+    // config values for the various forms of transit considered by the application
+    travelMethodConfig: {
+        publicTransit: {
+            startupTime: 10,
+            shutdownTime: 10,
+            speed: 0.5
+        },
+        car: {
+            startupTime: 20,
+            shutdownTime: 20,
+            speed: 1
+        },
+        plane: {
+            startupTime: 90,
+            shutdownTime: 90,
+            speed: (25/3)
+        }
+    },
+    // function for accepting a configuration object of assumptions about travel and returning the intersections, in order, that define which methods of travel are appropriate for calculating the time to travel a given distance; will usually accept HAPPENING.utils.travelMethodConfig as an argument
+    generateTravelBreakpoints: function(config) {
+        // an array of the methods of travel
+        var methodArray = [];
+
+        for (var method in config) {
+            methodArray.push(method);
+        };
+
+        // an array of the unique pairings of methods of travel
+        var methodPairArray = [];
+
+        methodArray.forEach(function(method) {
+            var methodIndex = methodArray.indexOf(method);
+            var otherMethodsArray = methodArray;
+            otherMethodsArray.splice(methodIndex, 1);
+            otherMethodsArray.forEach(function(otherMethod) {
+                if (methodPairArray.indexOf([method, otherMethod]) === -1 && methodPairArray.indexOf([otherMethod, method]) === -1) {
+                    methodPairArray.push([method, otherMethod]);
+                };
+            });
+        });
+
+        // an array of the intersections of two travel methods, along with the distance and time values at which they intersect
+        var intersectionArray = [];
+
+        methodPairArray.forEach(function(methodPair) {
+            var intersectionObject = {};
+            intersectionObject.method1 = config[methodPair[0]];
+            intersectionObject.method1.name = methodPair[0];
+            intersectionObject.method2 = config[methodPair[1]];
+            intersectionObject.method2.name = methodPair[1];
+            intersectionObject.timeIntersection = -1 * (intersectionObject.method2.speed * (intersectionObject.method2.startupTime + intersectionObject.method2.shutdownTime) - intersectionObject.method1.speed * (intersectionObject.method1.startupTime + intersectionObject.method1.shutdownTime))/(intersectionObject.method1.speed - intersectionObject.method2.speed);
+            intersectionObject.distanceIntersection = (intersectionObject.timeIntersection - intersectionObject.method1.startupTime - intersectionObject.method1.shutdownTime) * intersectionObject.method1.speed;
+            intersectionArray.push(intersectionObject);
+        });
+
+        // ensure that any intersections that happen outside of quadrant I are ignored
+        intersectionArray = intersectionArray.filter(function(intersectionObject){
+            if (intersectionObject.timeIntersection >=0 && intersectionObject.distanceIntersection >=0) {
+                return true;
+            }
+            else {
+                return false;
+            };
+        });
+
+        // sort by time value of intersection point
+        intersectionArray.sort(function(a, b){
+            return a.timeIntersection - b.timeIntersection;
+        });
+
+        // filter to make sure that any suboptimal intersections points -- points where another time value covers a greater amount of distance -- are thrown out
+        intersectionArray = intersectionArray.filter(function(intersectionObject){
+            var optimalPoint = true;
+            for (var method in config) {
+                // don't need to check the two methods that produce the intersection since they are, by definition, crossing exactly through the intersection
+                if (method !== intersectionObject.method1.name && method !== intersectionObject.method2.name) {
+                    var distanceAtThisTimeValue = config[method].speed * (intersectionObject.timeIntersection - config[method].startupTime - config[method].shutdownTime);
+                    if (distanceAtThisTimeValue > intersectionObject.distanceIntersection){
+                        optimalPoint = false;
+                    };
+                };
+            };
+            return optimalPoint;
+        });
+
+        return intersectionArray;
+    },
     // accepts a url (and a method, which defaults to "GET" if not passed) and returns result of an API call
     makeHttpRequest: function(url, method) {
         var result;
@@ -173,6 +260,7 @@ HAPPENING.models = {
             };
             this.set("dates", dateArray);
         },
+        // return distance in miles between the happening and a location object
         distanceFromLocation: function(locationObject) {
             var lat1 = locationObject.latitude;
             var long1 = locationObject.longitude;
@@ -180,6 +268,14 @@ HAPPENING.models = {
             var long2 = this.get('location').longitude;
             var distance = HAPPENING.utils.calculateDistance(lat1, long1, lat2, long2);
             return distance;
+        },
+        costToTravelFromLocation: function(locationObject) {
+            var distance = distanceFromLocation(locationObject);
+            
+        },
+        // distances in miles, times in minutes, speeds in minutes/mile
+        timeToTravelFromLocation: function(locationObject) {
+            var distance = distanceFromLocation(locationObject);
         },
         idAttribute: '_id'
     }),
